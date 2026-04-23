@@ -613,7 +613,21 @@ const COLOR_TYPE_ADD = {
 };
 
 // ===== タブ切替 =====
+// ===== 管理画面パスワード =====
+const ADMIN_PASSWORD = 'hair2024'; // ← パスワードはここを変更
+let adminUnlocked = false;
+
 function showTab(tab) {
+  // 管理画面はパスワード認証
+  if (tab === 'admin' && !adminUnlocked) {
+    const input = prompt('管理画面のパスワードを入力してください');
+    if (input === null) return; // キャンセル
+    if (input !== ADMIN_PASSWORD) {
+      alert('パスワードが違います');
+      return;
+    }
+    adminUnlocked = true;
+  }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(tab + '-page').classList.add('active');
@@ -3382,14 +3396,27 @@ function showReplyMessage(type, r) {
   chat.appendChild(wrap);
   chat.scrollTop = chat.scrollHeight;
 
-  // LINEから開いている場合はLINEにメッセージ送信
-  if (liffReady && liff.isInClient()) {
-    const msgText = type === 'approved'
-      ? `【ご予約のご確認用LINEです】\nご予約ありがとうございます😊\n下記の内容でご予約を承りました。\n\n📅 日時：${dateText}\n💇 メニュー：${menuText}\n\n当日はお気をつけてお越しくださいませ✂️\nよろしくお願い致します🌿`
-      : `いつもご利用ありがとうございます😊\n\nせっかくご希望いただいたご予約枠がすでに埋まっており、ご案内が難しい状況です。\n\n不便をおかけしてしまい大変申し訳ございません。\nお手数をおかけいたしますが、改めてご予約をご検討いただけますと幸いです🌿`;
-    liff.sendMessages([{ type: 'text', text: msgText }])
+  // GAS経由でお客様のLINEに自動返信
+  const lineMsg = type === 'approved'
+    ? `【ご予約のご確認用LINEです】\nご予約ありがとうございます😊\n下記の内容でご予約を承りました。\n\n📅 日時：${dateText}\n💇 メニュー：${menuText}\n\n当日はお気をつけてお越しくださいませ✂️\nよろしくお願い致します🌿`
+    : `いつもご利用ありがとうございます😊\n\nせっかくご希望いただいたご予約枠がすでに埋まっており、ご案内が難しい状況です。\n\n不便をおかけしてしまい大変申し訳ございません。\nお手数をおかけいたしますが、改めてご予約をご検討いただけますと幸いです🌿`;
+
+  if (r.lineUserId && GAS_URL) {
+    // お客様のユーザーIDがある場合はGAS経由で自動送信
+    fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'push_to_customer', userId: r.lineUserId, message: lineMsg }),
+    }).then(() => showToast('LINEにメッセージを送信しました📤'))
+      .catch(e => console.warn('LINE自動返信失敗:', e));
+  } else if (liffReady && liff.isInClient()) {
+    // LIFFクライアント内の場合はsendMessagesで送信
+    liff.sendMessages([{ type: 'text', text: lineMsg }])
       .then(() => showToast('LINEにメッセージを送信しました'))
       .catch(e => console.warn('LINE送信失敗:', e));
+  } else {
+    showToast('返信メッセージをコピーしてLINEで送信してください');
   }
 
   // お客様側タブに切り替え
