@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>HairStudio ONE｜予約システム</title>
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
@@ -188,7 +188,7 @@ body::before {
 .input-wrap { display:flex;gap:10px;align-items:flex-end;max-width:600px;margin:0 auto; }
 #u-input {
   flex:1;border:1.5px solid rgba(139,111,71,0.22);border-radius:22px;
-  padding:11px 16px;font-size:14px;font-family:'DM Sans',sans-serif;
+  padding:11px 16px;font-size:16px;font-family:'DM Sans',sans-serif;
   background:white;color:var(--ink);outline:none;resize:none;
   min-height:44px;max-height:110px;line-height:1.5;transition:border-color .2s;
 }
@@ -567,6 +567,11 @@ async function initLiff() {
     } else if (liff.isInClient()) {
       liff.login();
     }
+    // LINEクライアント内では管理画面タブを非表示
+    if (liff.isInClient()) {
+      const adminTab = document.getElementById('admin-tab');
+      if (adminTab) adminTab.style.display = 'none';
+    }
   } catch (e) {
     console.warn('LIFF init failed (通常ブラウザで動作中):', e);
     liffReady = false;
@@ -704,7 +709,7 @@ function showDirectMsgInput() {
   const textarea = document.createElement('textarea');
   textarea.placeholder = '例）4月20日 午後、5月1日 9時　カット';
   textarea.rows = 3;
-  textarea.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:9px 12px;font-size:13px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);resize:none;line-height:1.6;margin-top:10px;';
+  textarea.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:9px 12px;font-size:16px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);resize:none;line-height:1.6;margin-top:10px;';
 
   const sendBtn = document.createElement('button');
   sendBtn.className = 'c-btn';
@@ -901,7 +906,7 @@ function showNotesFinal() {
   const textarea = document.createElement('textarea');
   textarea.placeholder = 'アレルギー、髪のお悩み、当日の都合など、なんでもお気軽にどうぞ。';
   textarea.rows = 3;
-  textarea.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:9px 12px;font-size:13px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);resize:none;line-height:1.6;margin-top:10px;';
+  textarea.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:9px 12px;font-size:16px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);resize:none;line-height:1.6;margin-top:10px;';
 
   const doneBtn = document.createElement('button');
   doneBtn.className = 'c-btn';
@@ -952,7 +957,7 @@ function showOtherInput(stepName, placeholder, backLabel, backFn, onSubmit) {
   const textarea = document.createElement('textarea');
   textarea.placeholder = '詳細をご記入ください。';
   textarea.rows = 3;
-  textarea.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:8px 12px;font-size:13px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);resize:none;line-height:1.6;margin-top:10px;';
+  textarea.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:8px 12px;font-size:16px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);resize:none;line-height:1.6;margin-top:10px;';
 
   const doneBtn = document.createElement('button');
   doneBtn.className = 'c-btn';
@@ -2953,7 +2958,7 @@ function makeCard(r) {
         <select id="menu-sel-${r.id}" onchange="toggleMenuOther(${r.id})" style="margin-top:4px;width:100%;padding:7px 10px;border:1px solid rgba(139,111,71,0.35);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;background:white;color:var(--ink);">
           ${menuOptions}
         </select>
-        <input type="text" id="menu-other-${r.id}" placeholder="メニューを入力してください" style="display:none;margin-top:6px;width:100%;padding:7px 10px;border:1px solid rgba(139,111,71,0.35);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;box-sizing:border-box;">
+        <input type="text" id="menu-other-${r.id}" placeholder="メニューを入力してください" style="display:none;margin-top:6px;width:100%;padding:7px 10px;border:1px solid rgba(139,111,71,0.35);border-radius:8px;font-size:16px;font-family:'DM Sans',sans-serif;box-sizing:border-box;">
       </div>` : ''}
     </div>
     ${r.counseling||r.notes ? `<div class="req-notes"><span class="lbl">カウンセリング・備考</span>${r.counseling||''}${r.notes?' / '+r.notes:''}</div>` : ''}
