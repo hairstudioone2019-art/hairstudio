@@ -2665,10 +2665,43 @@ document.getElementById('u-input').addEventListener('input', function() {
 });
 
 // ===== 管理画面 =====
-function renderAdmin() {
+async function renderAdmin() {
   renderClosedDates();
   renderAdminCalendar();
+  // GASからスプレッドシートのデータを取得して反映
+  await syncBookingsFromSheet();
   renderRequests();
+}
+
+// スプレッドシートから予約データを取得してlocalStorageと統合
+async function syncBookingsFromSheet() {
+  if (!GAS_URL) return;
+  try {
+    const res = await fetch(`${GAS_URL}?action=getBookings`);
+    const data = await res.json();
+    if (!data.success || !data.bookings) return;
+
+    // スプレッドシートのデータを優先してlocalStorageを更新
+    const sheetBookings = data.bookings;
+    const localBookings = JSON.parse(localStorage.getItem('hs_requests') || '[]');
+
+    // シートにあってlocalにないものを追加、シートのステータスで上書き
+    sheetBookings.forEach(sb => {
+      const idx = localBookings.findIndex(lb => String(lb.id) === String(sb.id));
+      if (idx === -1) {
+        localBookings.push(sb);
+      } else {
+        // シートのステータスを優先
+        localBookings[idx].status = sb.status;
+      }
+    });
+
+    localStorage.setItem('hs_requests', JSON.stringify(localBookings));
+    requests = localBookings;
+    updateBadge();
+  } catch(e) {
+    console.log('シート同期エラー:', e);
+  }
 }
 
 function renderAdminCalendar() {
@@ -3036,6 +3069,17 @@ function sendLineNotify(type, data) {
   }).catch(e => console.log('LINE通知エラー:', e));
 }
 
+// スプレッドシートのステータスを更新
+function updateSheetStatus(bookingId, status) {
+  if (!GAS_URL) return;
+  fetch(GAS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'updateStatus', bookingId, status }),
+  }).catch(e => console.log('ステータス更新エラー:', e));
+}
+
 // スプレッドシートに予約を保存
 function saveBookingToSpreadsheet(booking) {
   if (!GAS_URL) return;
@@ -3313,6 +3357,8 @@ function approve(id) {
   r.status = 'approved';
   localStorage.setItem('hs_requests', JSON.stringify(requests));
   sendToGoogleCalendar(r);
+  // スプレッドシートのステータスも更新
+  updateSheetStatus(r.id, 'approved');
   showToast(`${r.name}様の予約を承認しました`);
   updateBadge();
   renderAdmin();
