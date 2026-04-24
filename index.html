@@ -562,10 +562,13 @@ async function initLiff() {
     await liff.init({ liffId: LIFF_ID });
     liffReady = true;
     if (liff.isLoggedIn()) {
+      // ログイン済み：プロフィール取得
       lineProfile = await liff.getProfile();
       console.log('LINE profile:', lineProfile);
-    } else if (liff.isInClient()) {
+    } else {
+      // 未ログイン：LINEクライアント内外問わずログイン
       liff.login();
+      return;
     }
     // LINEクライアント内では管理画面タブを非表示
     if (liff.isInClient()) {
@@ -3518,13 +3521,10 @@ function showReplyMessage(type, r) {
       body: JSON.stringify({ type: 'push_to_customer', userId: r.lineUserId, message: lineMsg }),
     }).then(() => showToast('LINEにメッセージを送信しました📤'))
       .catch(e => console.warn('LINE自動返信失敗:', e));
-  } else if (liffReady && liff.isInClient()) {
-    // LIFFクライアント内の場合はsendMessagesで送信
-    liff.sendMessages([{ type: 'text', text: lineMsg }])
-      .then(() => showToast('LINEにメッセージを送信しました'))
-      .catch(e => console.warn('LINE送信失敗:', e));
   } else {
-    showToast('返信メッセージをコピーしてLINEで送信してください');
+    // lineUserIdがない場合：手動送信用にメッセージをコピー
+    try { navigator.clipboard.writeText(lineMsg); } catch(e) {}
+    showToast('メッセージをコピーしました。LINEで手動送信してください📋');
   }
 
   // お客様側タブに切り替え
