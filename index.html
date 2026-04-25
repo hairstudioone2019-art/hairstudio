@@ -565,10 +565,14 @@ async function initLiff() {
       // ログイン済み：プロフィール取得
       lineProfile = await liff.getProfile();
       console.log('LINE profile:', lineProfile);
-    } else {
-      // 未ログイン：LINEクライアント内外問わずログイン
+    } else if (liff.isInClient()) {
+      // LINEアプリ内（未ログイン）→ ログインへ
       liff.login();
       return;
+    } else {
+      // 通常ブラウザ → ログイン強制しない（LINE IDなしで動作）
+      console.log('通常ブラウザ：LINEログインをスキップ');
+      liffReady = false;
     }
     // LINEクライアント内では管理画面タブを非表示
     if (liff.isInClient()) {
@@ -620,6 +624,8 @@ const COLOR_TYPE_ADD = {
 const ADMIN_PASSWORD = 'hair2024'; // ← パスワードはここを変更
 let adminUnlocked = false;
 
+let _adminAutoRefreshTimer = null;
+
 function showTab(tab) {
   // 管理画面はパスワード認証
   if (tab === 'admin' && !adminUnlocked) {
@@ -637,7 +643,29 @@ function showTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(tab + '-page').classList.add('active');
   event.target.classList.add('active');
-  if (tab === 'admin') renderAdmin();
+  if (tab === 'admin') {
+    renderAdmin();
+    // 管理タブ表示中は5分ごとに自動更新
+    if (_adminAutoRefreshTimer) clearInterval(_adminAutoRefreshTimer);
+    _adminAutoRefreshTimer = setInterval(async () => {
+      const adminPage = document.getElementById('admin-page');
+      if (adminPage && adminPage.classList.contains('active')) {
+        await syncCalendarStatus();
+        renderAdminCalendar();
+        updateAdminCalendarLastSync();
+        await syncBookingsFromSheet();
+        renderRequests();
+      } else {
+        clearInterval(_adminAutoRefreshTimer);
+        _adminAutoRefreshTimer = null;
+      }
+    }, 5 * 60 * 1000);
+  } else {
+    if (_adminAutoRefreshTimer) {
+      clearInterval(_adminAutoRefreshTimer);
+      _adminAutoRefreshTimer = null;
+    }
+  }
   if (tab === 'customer' && step === 'date') {
     // カレンダー表示中の場合のみ最新設定で再生成
     settings = JSON.parse(localStorage.getItem('hs_settings') || '{"maxHours":8,"closedDates":[],"dayStatus":{}}');
@@ -2692,6 +2720,7 @@ document.getElementById('u-input').addEventListener('input', function() {
 async function renderAdmin() {
   renderClosedDates();
   renderAdminCalendar();
+  updateAdminCalendarLastSync();
   // GASからスプレッドシートのデータを取得して反映
   await syncBookingsFromSheet();
   renderRequests();
@@ -3052,17 +3081,11 @@ function makeCard(r) {
         <button class="btn-approve" onclick="approveWithDate(${r.id})">✓ 承認・カレンダー登録</button>
         <button class="btn-reject" onclick="reject(${r.id})">✕ 断る</button>
       </div>` : `
-      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-          <span class="status-pill ${r.status}">${r.status==='approved'?'✓ 承認済み':r.status==='awaiting_customer'?'⏳ お客様確認待ち':'✕ 断り済み'}</span>
-          ${r.status !== 'awaiting_customer' ? `<button onclick="copyReplyMessage(${r.id},'${r.status}')" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(139,111,71,0.3);background:rgba(139,111,71,0.07);color:var(--accent);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 返信メッセージをコピー</button>` : ''}
-          ${r.lineUserId ? `<button onclick="openSendMessageModal(${r.id})" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(76,175,80,0.3);background:rgba(76,175,80,0.07);color:#4CAF50;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">💬 LINEで送信</button>` : ''}
-        </div>
-        ${r.status === 'awaiting_customer' ? `
-        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-          <button onclick="adminConfirmApproval(${r.id})" style="padding:8px 16px;border-radius:10px;border:none;background:linear-gradient(135deg,#5a9e6f,#4a8e5f);color:white;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">✓ お客様承諾・確定</button>
-          <button onclick="adminRequestReschedule(${r.id})" style="padding:8px 14px;border-radius:10px;border:1px solid rgba(139,111,71,0.4);background:rgba(139,111,71,0.07);color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">↩ 日時を変更する</button>
-        </div>` : ''}
+      <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end;align-items:center;">
+        <span class="status-pill ${r.status}">${r.status==='approved'?'✓ 承認済み':r.status==='awaiting_customer'?'⏳ お客様確認待ち':'✕ 断り済み'}</span>
+        ${r.status !== 'awaiting_customer' ? `<button onclick="copyReplyMessage(${r.id},'${r.status}')" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(139,111,71,0.3);background:rgba(139,111,71,0.07);color:var(--accent);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 返信メッセージをコピー</button>` : ''}
+        ${r.lineUserId ? `<button onclick="openSendMessageModal(${r.id})" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(76,175,80,0.3);background:rgba(76,175,80,0.07);color:#4CAF50;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">💬 LINEで送信</button>` : ''}
+        <button onclick="deleteRequest(${r.id})" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(184,90,90,0.3);background:rgba(184,90,90,0.06);color:var(--danger);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">🗑 削除</button>
       </div>`}
   `;
 
@@ -3170,7 +3193,25 @@ async function syncAndRefresh() {
   if (btn) { btn.textContent = '⏳ 同期中...'; btn.disabled = true; }
   await syncCalendarStatus(true); // 強制同期（キャッシュ無視）
   refreshCustomerCalendar();
-  if (btn) { btn.textContent = '✅ 同期・反映完了！'; btn.disabled = false; setTimeout(() => { btn.textContent = '📅 Googleカレンダーと同期して空き枠を更新'; }, 2000); }
+  if (btn) {
+    btn.textContent = '✅ 同期・反映完了！';
+    btn.disabled = false;
+    setTimeout(() => { updateAdminCalendarLastSync(); }, 2000);
+  }
+}
+
+function updateAdminCalendarLastSync() {
+  const btn = document.querySelector('button[onclick="syncAndRefresh()"]');
+  if (!btn) return;
+  const lastSync = parseInt(localStorage.getItem('hs_last_sync') || '0');
+  if (!lastSync) {
+    btn.textContent = '📅 空き枠をGoogleカレンダーと同期する（手動）';
+    return;
+  }
+  const d = new Date(lastSync);
+  const h = d.getHours().toString().padStart(2,'0');
+  const m = d.getMinutes().toString().padStart(2,'0');
+  btn.textContent = `📅 Googleカレンダーと同期する（最終更新 ${h}:${m}）`;
 }
 
 function sendToGoogleCalendar(r) {
@@ -3375,44 +3416,6 @@ function _doApproveWithDate(id, r, resolvedDate) {
   showProposalMessage(r);
 }
 
-
-// 管理者が「お客様承諾・確定」を押したとき
-function adminConfirmApproval(id) {
-  const r = requests.find(x => x.id === id);
-  if (!r) return;
-  if (!confirm(`${r.name}様の予約を確定しますか？\n\n日時：${r.proposedDate || r.timePref}\nカレンダーに登録してお客様に確定通知を送ります。`)) return;
-  r.status = 'approved';
-  localStorage.setItem('hs_requests', JSON.stringify(requests));
-  sendToGoogleCalendar(r);
-  updateSheetStatus(r.id, 'approved');
-  // お客様に確定通知をLINEで送信
-  if (r.lineUserId && GAS_URL) {
-    const msg = `予約が確定いたしました✂️🎉\n\n📅 日時：${r.proposedDate || r.timePref}\n💇 メニュー：${r.cutMenu || 'なし'}\n\nご来店をお待ちしております😊\nよろしくお願いいたします🌿`;
-    fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'push_to_customer', userId: r.lineUserId, message: msg }),
-    }).catch(e => console.warn('確定通知失敗:', e));
-  }
-  showToast(`${r.name}様の予約を確定しました！🎉`);
-  updateBadge();
-  renderAdmin();
-}
-
-// 管理者が「日時を変更する」を押したとき
-function adminRequestReschedule(id) {
-  const r = requests.find(x => x.id === id);
-  if (!r) return;
-  if (!confirm(`${r.name}様の日時提案を取り消して、再度日時を選び直しますか？`)) return;
-  r.status = 'pending';
-  r.proposedDate = '';
-  localStorage.setItem('hs_requests', JSON.stringify(requests));
-  showToast(`${r.name}様の予約を再調整中に戻しました`);
-  updateBadge();
-  renderAdmin();
-}
-
 // お客様が承諾 → 予約確定
 function confirmCustomerApproval(id) {
   const r = requests.find(x => x.id === id);
@@ -3471,6 +3474,18 @@ function reject(id) {
   renderAdmin();
   // チャット側に断りメッセージを表示
   showReplyMessage('rejected', r);
+}
+
+function deleteRequest(id) {
+  const r = requests.find(x => x.id === id);
+  if (!r) return;
+  if (!confirm(`${r.name}様のこの予約データを削除しますか？`)) return;
+  requests = requests.filter(x => x.id !== id);
+  localStorage.setItem('hs_requests', JSON.stringify(requests));
+  showToast(`${r.name}様の予約データを削除しました`);
+  updateBadge();
+  renderRequests();
+  renderCustomers();
 }
 
 function copyReplyMessage(id, status) {
@@ -4064,6 +4079,7 @@ function renderCustomers() {
         showToast(`${r.name}様のデータを削除しました`);
         updateBadge();
         renderCustomers();
+        renderRequests();
       } else {
         delBtn.dataset.confirm = '1';
         delBtn.textContent = '確認→削除';
@@ -4090,6 +4106,7 @@ function deleteCustomer(name) {
   showToast(`${name}様のデータを削除しました`);
   updateBadge();
   renderCustomers();
+  renderRequests();
 }
 
 function clearAllCustomers() {
@@ -4100,6 +4117,7 @@ function clearAllCustomers() {
     showToast('すべてのデータを削除しました');
     updateBadge();
     renderCustomers();
+    renderRequests();
     btn.dataset.confirm = '0';
     btn.textContent = '🗑 全件削除';
     btn.style.background = 'rgba(184,90,90,0.06)';
