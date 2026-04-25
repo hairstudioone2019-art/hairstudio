@@ -548,7 +548,7 @@ body::before {
 <script>
 // ===== LIFF設定 =====
 // ※ご自身のLIFF IDに変更してください
-const LIFF_ID = '2008500111-BL7plZp9';
+const LIFF_ID = '2009891310-vwlZLuD7';
 let liffReady = false;
 let lineProfile = null; // { userId, displayName, pictureUrl }
 
@@ -3625,22 +3625,6 @@ function showProposalMessage(r) {
   wrap.appendChild(bub);
   chat.appendChild(wrap);
   chat.scrollTop = chat.scrollHeight;
-
-  // GAS経由でお客様のLINEに日時提案を送信
-  const lineMsg = `ご予約のご希望を承りました😊\n\n下記の日時でご案内できます✂️\n\n📅 日時：${dateText}\n💇 メニュー：${menuText}\n\nこの日時でよろしければ、ご返信をお願いいたします🌿\nご都合が悪い場合は、別の日時をお知らせください。`;
-
-  if (r.lineUserId && typeof GAS_URL !== 'undefined' && GAS_URL) {
-    fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'push_to_customer', userId: r.lineUserId, message: lineMsg }),
-    }).then(() => showToast('日時提案をLINEで送信しました📤'))
-      .catch(e => console.warn('LINE自動返信失敗:', e));
-  } else {
-    try { navigator.clipboard.writeText(lineMsg); } catch(e) {}
-    showToast('メッセージをコピーしました。LINEで手動送信してください📋');
-  }
 
   // タブ切り替え
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
