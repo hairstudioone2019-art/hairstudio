@@ -2962,13 +2962,18 @@ function makeCard(r) {
         </div>
       </div>`;
   } else if (r.status === 'pending' && timePrefLines.length > 0 && !timePrefLines.every(isOmakaseLine)) {
-    // お客様が日時を指定してきた → ラジオボタンのみ（プルダウン不要）
+    // お客様が日時を指定してきた → 各希望日に時間ドロップダウンを追加
     const options = timePrefLines.map((line, i) => {
       const clean = line.replace(/^第\d+希望\s*/, '').replace('：', ' ');
-      return `<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid rgba(139,111,71,0.25);border-radius:8px;cursor:pointer;font-size:12px;margin-bottom:5px;background:white;">
-        <input type="radio" name="date_${r.id}" value="${line}" ${i===0?'checked':''} style="accent-color:var(--accent);">
-        <span>${clean}</span>
-      </label>`;
+      // お任せ行は時間ドロップダウンを表示、時間指定ありはそのまま表示
+      const needsTime = isOmakaseLine(line);
+      return `<div style="padding:7px 10px;border:1px solid rgba(139,111,71,0.25);border-radius:8px;margin-bottom:5px;background:white;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
+          <input type="radio" name="date_${r.id}" value="${line}" ${i===0?'checked':''} style="accent-color:var(--accent);">
+          <span>${clean}</span>
+        </label>
+        ${needsTime ? `<select id="time-sel-${r.id}-${i}" style="margin-top:6px;width:100%;padding:6px;border:1px solid rgba(139,111,71,0.3);border-radius:6px;font-size:12px;">${timeOptsHtml}</select>` : ''}
+      </div>`;
     }).join('');
     dateSelectHtml = `
       <div style="margin:8px 0 4px;font-size:11px;color:var(--muted);font-weight:500;">希望日時を選択して承認</div>
@@ -3228,7 +3233,24 @@ function approveWithDate(id) {
       resolvedDate = `${dateSel.value} ${timeSel.value}`;
     }
   } else if (selected) {
-    resolvedDate = selected.value;
+    // お任せ行の場合は同じdiv内の時間ドロップダウンを探す
+    const parentDiv = selected.closest('div[style]');
+    const isOmakase = selected.value.includes('お任せ') || selected.value.includes('おまかせ') || selected.value.includes('指定なし');
+    if (isOmakase && parentDiv) {
+      // ラジオボタンのインデックスを取得
+      const allRadios = card.querySelectorAll(`input[name="date_${id}"]`);
+      let radioIndex = 0;
+      allRadios.forEach((radio, i) => { if (radio === selected) radioIndex = i; });
+      const timeSel = card.querySelector(`#time-sel-${id}-${radioIndex}`);
+      if (timeSel) {
+        const datePart = selected.value.replace(/^第\d+希望\s*/, '').replace(/[：:].*/,'').trim();
+        resolvedDate = `${datePart} ${timeSel.value}`;
+      } else {
+        resolvedDate = selected.value;
+      }
+    } else {
+      resolvedDate = selected.value;
+    }
   } else {
     const dateSel = card ? card.querySelector(`#custom-date-sel-${id}`) : null;
     const timeSel = card ? card.querySelector(`#custom-time-sel-${id}`) : null;
