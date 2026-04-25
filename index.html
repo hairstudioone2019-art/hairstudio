@@ -548,7 +548,7 @@ body::before {
 <script>
 // ===== LIFF設定 =====
 // ※ご自身のLIFF IDに変更してください
-const LIFF_ID = '2009891310-vwlZLuD7';
+const LIFF_ID = '2008500111-BL7plZp9';
 let liffReady = false;
 let lineProfile = null; // { userId, displayName, pictureUrl }
 
@@ -3052,10 +3052,17 @@ function makeCard(r) {
         <button class="btn-approve" onclick="approveWithDate(${r.id})">✓ 承認・カレンダー登録</button>
         <button class="btn-reject" onclick="reject(${r.id})">✕ 断る</button>
       </div>` : `
-      <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end;align-items:center;">
-        <span class="status-pill ${r.status}">${r.status==='approved'?'✓ 承認済み':r.status==='awaiting_customer'?'⏳ お客様確認待ち':'✕ 断り済み'}</span>
-        ${r.status !== 'awaiting_customer' ? `<button onclick="copyReplyMessage(${r.id},'${r.status}')" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(139,111,71,0.3);background:rgba(139,111,71,0.07);color:var(--accent);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 返信メッセージをコピー</button>` : ''}
-        ${r.lineUserId ? `<button onclick="openSendMessageModal(${r.id})" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(76,175,80,0.3);background:rgba(76,175,80,0.07);color:#4CAF50;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">💬 LINEで送信</button>` : ''}
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+          <span class="status-pill ${r.status}">${r.status==='approved'?'✓ 承認済み':r.status==='awaiting_customer'?'⏳ お客様確認待ち':'✕ 断り済み'}</span>
+          ${r.status !== 'awaiting_customer' ? `<button onclick="copyReplyMessage(${r.id},'${r.status}')" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(139,111,71,0.3);background:rgba(139,111,71,0.07);color:var(--accent);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">📋 返信メッセージをコピー</button>` : ''}
+          ${r.lineUserId ? `<button onclick="openSendMessageModal(${r.id})" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(76,175,80,0.3);background:rgba(76,175,80,0.07);color:#4CAF50;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">💬 LINEで送信</button>` : ''}
+        </div>
+        ${r.status === 'awaiting_customer' ? `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+          <button onclick="adminConfirmApproval(${r.id})" style="padding:8px 16px;border-radius:10px;border:none;background:linear-gradient(135deg,#5a9e6f,#4a8e5f);color:white;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">✓ お客様承諾・確定</button>
+          <button onclick="adminRequestReschedule(${r.id})" style="padding:8px 14px;border-radius:10px;border:1px solid rgba(139,111,71,0.4);background:rgba(139,111,71,0.07);color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">↩ 日時を変更する</button>
+        </div>` : ''}
       </div>`}
   `;
 
@@ -3366,6 +3373,44 @@ function _doApproveWithDate(id, r, resolvedDate) {
   renderAdmin();
   // お客様チャット側に確認ボタン付きメッセージを表示
   showProposalMessage(r);
+}
+
+
+// 管理者が「お客様承諾・確定」を押したとき
+function adminConfirmApproval(id) {
+  const r = requests.find(x => x.id === id);
+  if (!r) return;
+  if (!confirm(`${r.name}様の予約を確定しますか？\n\n日時：${r.proposedDate || r.timePref}\nカレンダーに登録してお客様に確定通知を送ります。`)) return;
+  r.status = 'approved';
+  localStorage.setItem('hs_requests', JSON.stringify(requests));
+  sendToGoogleCalendar(r);
+  updateSheetStatus(r.id, 'approved');
+  // お客様に確定通知をLINEで送信
+  if (r.lineUserId && GAS_URL) {
+    const msg = `予約が確定いたしました✂️🎉\n\n📅 日時：${r.proposedDate || r.timePref}\n💇 メニュー：${r.cutMenu || 'なし'}\n\nご来店をお待ちしております😊\nよろしくお願いいたします🌿`;
+    fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'push_to_customer', userId: r.lineUserId, message: msg }),
+    }).catch(e => console.warn('確定通知失敗:', e));
+  }
+  showToast(`${r.name}様の予約を確定しました！🎉`);
+  updateBadge();
+  renderAdmin();
+}
+
+// 管理者が「日時を変更する」を押したとき
+function adminRequestReschedule(id) {
+  const r = requests.find(x => x.id === id);
+  if (!r) return;
+  if (!confirm(`${r.name}様の日時提案を取り消して、再度日時を選び直しますか？`)) return;
+  r.status = 'pending';
+  r.proposedDate = '';
+  localStorage.setItem('hs_requests', JSON.stringify(requests));
+  showToast(`${r.name}様の予約を再調整中に戻しました`);
+  updateBadge();
+  renderAdmin();
 }
 
 // お客様が承諾 → 予約確定
