@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- HairStudio ONE v2.5 - 2026/04/26 -->
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -267,10 +268,10 @@ body::before {
 .d-chip.holiday .d-name { color:#c8c0b8; }
 .d-chip.holiday .d-chip-side-top,.d-chip.holiday .d-chip-side-bot { background:#d8d4d0; }
 /* 左ラインの色 */
-.side-ok      { background:#4a9fd4; }   /* 青：残り1枠 */
-.side-ok-dim  { background:#a8d4ef; }   /* 薄青：残り2枠以上 */
-.side-cut     { background:#f5aa00; }   /* 黄：残り1枠カットのみ */
-.side-cut-dim { background:#fad97a; }   /* 薄黄：残り2枠以上カットのみ */
+.side-ok      { background:#4a9fd4; }   /* 青：残り2枠（濃い） */
+.side-ok-dim  { background:#a8d4ef; }   /* 薄青：残り1枠 */
+.side-cut     { background:#f5aa00; }   /* 黄：残り2枠カットのみ（濃い） */
+.side-cut-dim { background:#fad97a; }   /* 薄黄：残り1枠カットのみ */
 .side-full    { background:#e03030; }
 .side-off     { background:#d8d4d0; }
 /* 選択状態 */
@@ -1209,14 +1210,14 @@ function chipSideHtml(amStatus, pmStatus) {
   const amOpen = amStatus === 'ok' || amStatus === 'cut-only';
   const pmOpen = pmStatus === 'ok' || pmStatus === 'cut-only';
   const openCount = (amOpen ? 1 : 0) + (pmOpen ? 1 : 0);
-  const isLastSlot = openCount <= 1; // 残り1枠以下なら濃い色
+  const isLastSlot = openCount <= 1; // 残り1枠以下なら薄い色
 
   function slotClass(st) {
     if (st === 'full')     return 'side-full';
     if (st === 'closed' || st === 'holiday') return 'side-off';
-    if (st === 'cut-only') return isLastSlot ? 'side-cut' : 'side-cut-dim';
-    if (st === 'ok')       return isLastSlot ? 'side-ok'  : 'side-ok-dim';
-    return 'side-ok-dim';
+    if (st === 'cut-only') return isLastSlot ? 'side-cut-dim' : 'side-cut';
+    if (st === 'ok')       return isLastSlot ? 'side-ok-dim'  : 'side-ok';
+    return 'side-ok';
   }
 
   const am = slotClass(amStatus);
@@ -1386,8 +1387,8 @@ function showDatePicker() {
       const pmOpen = pmSt === 'ok' || pmSt === 'cut-only';
       const openCount2 = (amOpen ? 1 : 0) + (pmOpen ? 1 : 0);
       const isLast2 = openCount2 <= 1;
-      const amCls = amSt === 'full' ? 'side-full' : amSt === 'cut-only' ? (isLast2 ? 'side-cut' : 'side-cut-dim') : (isLast2 ? 'side-ok' : 'side-ok-dim');
-      const pmCls = pmSt === 'full' ? 'side-full' : pmSt === 'cut-only' ? (isLast2 ? 'side-cut' : 'side-cut-dim') : (isLast2 ? 'side-ok' : 'side-ok-dim');
+      const amCls = amSt === 'full' ? 'side-full' : amSt === 'cut-only' ? (isLast2 ? 'side-cut-dim' : 'side-cut') : (isLast2 ? 'side-ok-dim' : 'side-ok');
+      const pmCls = pmSt === 'full' ? 'side-full' : pmSt === 'cut-only' ? (isLast2 ? 'side-cut-dim' : 'side-cut') : (isLast2 ? 'side-ok-dim' : 'side-ok');
       const isCutOnlyDay = isSelectable && (amSt === 'cut-only' || pmSt === 'cut-only' || amSt === 'full' || pmSt === 'full');
       chip.className = `d-chip${sunCls}${!isSelectable ? ' avail-few' : ''}`;
       chip.dataset.label = dObj.label;
@@ -2832,8 +2833,19 @@ function renderAdminCalendar() {
         // 通常日：午前・午後それぞれタップで切り替え
         const amStatus = settings.dayStatus[label + '_am'] || settings.dayStatus[label] || 'ok';
         const pmStatus = settings.dayStatus[label + '_pm'] || settings.dayStatus[label] || 'ok';
-        const amCls = amStatus === 'full' ? 'side-full' : amStatus === 'cut-only' ? 'side-cut' : 'side-ok';
-        const pmCls = pmStatus === 'full' ? 'side-full' : pmStatus === 'cut-only' ? 'side-cut' : 'side-ok';
+        // 空き枠数で濃淡を決定（2枠=濃い、1枠=薄い）
+        const amOpen = amStatus === 'ok' || amStatus === 'cut-only';
+        const pmOpen = pmStatus === 'ok' || pmStatus === 'cut-only';
+        const openCount = (amOpen ? 1 : 0) + (pmOpen ? 1 : 0);
+        const isLast = openCount <= 1;
+        const amCls = amStatus === 'full' ? 'side-full'
+          : amStatus === 'cut-only' ? (isLast ? 'side-cut-dim' : 'side-cut')
+          : amStatus === 'ok' ? (isLast ? 'side-ok-dim' : 'side-ok')
+          : 'side-off';
+        const pmCls = pmStatus === 'full' ? 'side-full'
+          : pmStatus === 'cut-only' ? (isLast ? 'side-cut-dim' : 'side-cut')
+          : pmStatus === 'ok' ? (isLast ? 'side-ok-dim' : 'side-ok')
+          : 'side-off';
         chip.className = `d-chip${sunCls}`;
         chip.style.cursor = 'pointer';
         chip.innerHTML = `
