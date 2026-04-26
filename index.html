@@ -620,6 +620,8 @@ const COLOR_TYPE_ADD = {
 const ADMIN_PASSWORD = 'hair2024'; // ← パスワードはここを変更
 let adminUnlocked = false;
 
+let _adminAutoRefreshTimer = null;
+
 function showTab(tab) {
   // 管理画面はパスワード認証
   if (tab === 'admin' && !adminUnlocked) {
@@ -637,7 +639,25 @@ function showTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(tab + '-page').classList.add('active');
   event.target.classList.add('active');
-  if (tab === 'admin') renderAdmin();
+  if (tab === 'admin') {
+    renderAdmin();
+    if (_adminAutoRefreshTimer) clearInterval(_adminAutoRefreshTimer);
+    _adminAutoRefreshTimer = setInterval(async () => {
+      const adminPage = document.getElementById('admin-page');
+      if (adminPage && adminPage.classList.contains('active')) {
+        await syncCalendarStatus();
+        renderAdminCalendar();
+        updateAdminCalendarLastSync();
+        await syncBookingsFromSheet();
+        renderRequests();
+      } else {
+        clearInterval(_adminAutoRefreshTimer);
+        _adminAutoRefreshTimer = null;
+      }
+    }, 5 * 60 * 1000);
+  } else {
+    if (_adminAutoRefreshTimer) { clearInterval(_adminAutoRefreshTimer); _adminAutoRefreshTimer = null; }
+  }
   if (tab === 'customer' && step === 'date') {
     // カレンダー表示中の場合のみ最新設定で再生成
     settings = JSON.parse(localStorage.getItem('hs_settings') || '{"maxHours":8,"closedDates":[],"dayStatus":{}}');
@@ -2673,6 +2693,7 @@ document.getElementById('u-input').addEventListener('input', function() {
 async function renderAdmin() {
   renderClosedDates();
   renderAdminCalendar();
+  updateAdminCalendarLastSync();
   // GASからスプレッドシートのデータを取得して反映
   await syncBookingsFromSheet();
   renderRequests();
@@ -3165,9 +3186,24 @@ async function syncCalendarStatus(force = false) {
 async function syncAndRefresh() {
   const btn = document.querySelector('button[onclick="syncAndRefresh()"]');
   if (btn) { btn.textContent = '⏳ 同期中...'; btn.disabled = true; }
-  await syncCalendarStatus(true); // 強制同期（キャッシュ無視）
+  await syncCalendarStatus(true);
   refreshCustomerCalendar();
-  if (btn) { btn.textContent = '✅ 同期・反映完了！'; btn.disabled = false; setTimeout(() => { btn.textContent = '📅 Googleカレンダーと同期して空き枠を更新'; }, 2000); }
+  if (btn) {
+    btn.textContent = '✅ 同期・反映完了！';
+    btn.disabled = false;
+    setTimeout(() => { updateAdminCalendarLastSync(); }, 2000);
+  }
+}
+
+function updateAdminCalendarLastSync() {
+  const btn = document.querySelector('button[onclick="syncAndRefresh()"]');
+  if (!btn) return;
+  const lastSync = parseInt(localStorage.getItem('hs_last_sync') || '0');
+  if (!lastSync) { btn.textContent = '📅 Googleカレンダーと同期して空き枠を更新'; return; }
+  const d = new Date(lastSync);
+  const h = d.getHours().toString().padStart(2,'0');
+  const m = d.getMinutes().toString().padStart(2,'0');
+  btn.textContent = `📅 Googleカレンダーと同期する（最終更新 ${h}:${m}）`;
 }
 
 function sendToGoogleCalendar(r) {
