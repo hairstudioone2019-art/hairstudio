@@ -533,9 +533,12 @@ body::before {
 
     <!-- お客様データタブ -->
     <div id="admin-tab-customers" style="display:none;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;">
         <div style="font-size:12px;color:var(--muted);">登録済みのお客様データ一覧</div>
-        <button onclick="clearAllCustomers()" style="padding:6px 12px;border-radius:8px;border:1px solid rgba(184,90,90,0.3);background:rgba(184,90,90,0.06);color:var(--danger);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">🗑 全件削除</button>
+        <div style="display:flex;gap:6px;">
+          <button onclick="toggleSelectAll()" id="select-all-btn" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:white;color:var(--accent);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;">☐ 全選択</button>
+          <button onclick="deleteSelected()" id="delete-selected-btn" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(184,90,90,0.3);background:rgba(184,90,90,0.06);color:var(--danger);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;display:none;">🗑 選択削除</button>
+        </div>
       </div>
       <div id="customers-list"></div>
     </div>
@@ -4044,7 +4047,14 @@ function renderCustomers() {
       }, 400);
     };
 
-    // 削除ボタン
+    // チェックボックス
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.dataset.name = r.name;
+    chk.style.cssText = 'width:17px;height:17px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;';
+    chk.onclick = (e) => { e.stopPropagation(); updateDeleteBtn(); };
+
+    // 削除ボタン（個別）
     const delBtn = document.createElement('button');
     delBtn.textContent = '削除';
     delBtn.style.cssText = 'padding:5px 10px;border-radius:7px;border:1px solid rgba(184,90,90,0.3);background:rgba(184,90,90,0.06);color:var(--danger);font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0;';
@@ -4071,10 +4081,43 @@ function renderCustomers() {
       }
     };
 
+    el.appendChild(chk);
     el.appendChild(left);
     el.appendChild(delBtn);
     container.appendChild(el);
   });
+}
+
+function updateDeleteBtn() {
+  const checked = document.querySelectorAll('#customers-list input[type=checkbox]:checked');
+  const btn = document.getElementById('delete-selected-btn');
+  if (btn) btn.style.display = checked.length > 0 ? '' : 'none';
+}
+
+function toggleSelectAll() {
+  const checkboxes = document.querySelectorAll('#customers-list input[type=checkbox]');
+  const allChecked = Array.from(checkboxes).every(c => c.checked);
+  checkboxes.forEach(c => { c.checked = !allChecked; });
+  const btn = document.getElementById('select-all-btn');
+  if (btn) btn.textContent = allChecked ? '☐ 全選択' : '☑ 全解除';
+  updateDeleteBtn();
+}
+
+function deleteSelected() {
+  const checked = document.querySelectorAll('#customers-list input[type=checkbox]:checked');
+  if (checked.length === 0) return;
+  const names = Array.from(checked).map(c => c.dataset.name);
+  if (!confirm(names.map(n => n + '様').join('、') + 'のデータを削除しますか？')) return;
+  let all = JSON.parse(localStorage.getItem('hs_requests') || '[]');
+  all = all.filter(x => !names.includes(x.name));
+  requests = all;
+  localStorage.setItem('hs_requests', JSON.stringify(all));
+  showToast(`${names.length}件のデータを削除しました`);
+  updateBadge();
+  renderCustomers();
+  renderRequests();
+  const btn = document.getElementById('select-all-btn');
+  if (btn) btn.textContent = '☐ 全選択';
 }
 
 function deleteCustomer(name) {
