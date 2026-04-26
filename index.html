@@ -501,9 +501,7 @@ body::before {
         <span style="padding:3px 8px;border-radius:20px;background:#fffdf0;border:1px solid #e8d898;color:#c8a020;">🟡 カットのみ</span>
         <span style="padding:3px 8px;border-radius:20px;background:#fff0f0;border:1px solid #e8a0a0;color:#c05050;">🔴 満枠</span>
       </div>
-      <button onclick="syncAndRefresh()" style="margin-bottom:10px;width:100%;padding:9px;border-radius:8px;border:1.5px solid rgba(74,159,212,0.5);background:rgba(74,159,212,0.08);color:#4a9fd4;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">
-        📅 空き枠をGoogleカレンダーと同期する（手動）
-      </button>
+      <button id="sync-cal-btn" onclick="syncAndRefresh()" style="margin-bottom:10px;width:100%;padding:9px;border-radius:8px;border:1.5px solid rgba(74,159,212,0.5);background:rgba(74,159,212,0.08);color:#4a9fd4;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">📅 空き枠をGoogleカレンダーと同期する（手動）</button>
       <div id="admin-cal-wrap"></div>
 
       <!-- 休業日設定 -->
@@ -3222,7 +3220,8 @@ async function syncCalendarStatus(force = false) {
       });
       localStorage.setItem('hs_settings', JSON.stringify(settings));
       localStorage.setItem('hs_last_sync', Date.now().toString());
-      renderAdmin && renderAdmin();
+      renderAdminCalendar();
+      updateAdminCalendarLastSync();
       console.log('カレンダーステータス同期完了:', Object.keys(json.status).length + '日分');
     }
   } catch (e) {
@@ -3231,7 +3230,7 @@ async function syncCalendarStatus(force = false) {
 }
 
 async function syncAndRefresh() {
-  const btn = document.querySelector('button[onclick="syncAndRefresh()"]');
+  const btn = document.getElementById('sync-cal-btn');
   if (btn) { btn.textContent = '⏳ 同期中...'; btn.disabled = true; }
   await syncCalendarStatus(true);
   refreshCustomerCalendar();
@@ -3243,7 +3242,7 @@ async function syncAndRefresh() {
 }
 
 function updateAdminCalendarLastSync() {
-  const btn = document.querySelector('button[onclick="syncAndRefresh()"]');
+  const btn = document.getElementById('sync-cal-btn');
   if (!btn) return;
   const lastSync = parseInt(localStorage.getItem('hs_last_sync') || '0');
   if (!lastSync) { btn.textContent = '📅 Googleカレンダーと同期して空き枠を更新'; return; }
