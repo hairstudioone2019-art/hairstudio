@@ -2947,7 +2947,30 @@ function makeCard(r) {
   // 選択ラジオUI（pending時のみ）
   let dateSelectHtml = '';
   // お任せ判定ヘルパー（「午前お任せ」「午後お任せ」「終日お任せ」「おまかせ」「お任せ」「指定なし」のいずれかを含む）
-  const isOmakaseLine = l => l.includes('お任せ') || l.includes('おまかせ') || l.includes('指定なし');
+  const isOmakaseLine = l => l.includes('お任せ') || l.includes('おまかせ') || l.includes('指定なし') || /\d+時以降/.test(l) || /\d+:\d+以降/.test(l);
+
+  // 「〇時以降」から最低時間を取得する関数
+  function getAfterTime(line) {
+    const m = line.match(/(\d+)(?::(\d+))?時以降/) || line.match(/(\d+):(\d+)以降/);
+    if (!m) return null;
+    const hour = parseInt(m[1]);
+    const min = m[2] ? parseInt(m[2]) : 0;
+    return hour * 60 + min; // 分に変換
+  }
+
+  // 「〇時以降」用にフィルタリングされたtimeOptsHtmlを生成
+  function buildTimeOptsHtml(line) {
+    const afterMin = getAfterTime(line);
+    return timeOpts.map(t => {
+      if (t.disabled) return '<option value="" disabled>' + t.label + '</option>';
+      if (afterMin !== null) {
+        const tParts = t.value.split(':');
+        const tMin = parseInt(tParts[0]) * 60 + parseInt(tParts[1]);
+        if (tMin < afterMin) return ''; // 以降より前はスキップ
+      }
+      return '<option value="' + t.value + '">' + t.label + '</option>';
+    }).join('');
+  }
 
   // ===== メッセージ予約：お客様のメッセージ内容を表示＋日時を管理者が入力 =====
   if (r.isDirect && r.status === 'pending') {
@@ -2962,32 +2985,22 @@ function makeCard(r) {
         </div>
       </div>`;
   } else if (r.status === 'pending' && timePrefLines.length > 0 && !timePrefLines.every(isOmakaseLine)) {
-    // お客様が日時を指定してきた
-    const allTimeSpecified = timePrefLines.every(l => !isOmakaseLine(l));
-    if (allTimeSpecified && timePrefLines.length === 1) {
-      // 1件で時間まで指定されている → ラジオ不要、そのまま承認可
-      dateSelectHtml = `
-        <div style="padding:8px 10px;border:1px solid rgba(90,158,111,0.3);border-radius:8px;background:rgba(90,158,111,0.06);font-size:12px;color:var(--ink);">
-          ✅ 日時指定済み：${timePrefLines[0].replace(/^第\d+希望\s*/,'').replace('：',' ')}
-          <input type="hidden" name="date_${r.id}" value="${timePrefLines[0]}">
-        </div>`;
-    } else {
-      // 複数希望 or 一部お任せ → ラジオで選択
-      const options = timePrefLines.map((line, i) => {
-        const clean = line.replace(/^第\d+希望\s*/, '').replace('：', ' ');
-        const needsTime = isOmakaseLine(line);
-        return `<div style="padding:7px 10px;border:1px solid rgba(139,111,71,0.25);border-radius:8px;margin-bottom:5px;background:white;">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
-            <input type="radio" name="date_${r.id}" value="${line}" ${i===0?'checked':''} style="accent-color:var(--accent);">
-            <span>${clean}</span>
-          </label>
-          ${needsTime ? `<select id="time-sel-${r.id}-${i}" style="margin-top:6px;width:100%;padding:6px;border:1px solid rgba(139,111,71,0.3);border-radius:6px;font-size:12px;">${timeOptsHtml}</select>` : ''}
-        </div>`;
-      }).join('');
-      dateSelectHtml = `
-        <div style="margin:8px 0 4px;font-size:11px;color:var(--muted);font-weight:500;">希望日時を選択して承認</div>
-        ${options}`;
-    }
+    // お客様が日時を指定してきた → 各希望日に時間ドロップダウンを追加
+    const options = timePrefLines.map((line, i) => {
+      const clean = line.replace(/^第\d+希望\s*/, '').replace('：', ' ');
+      // お任せ行は時間ドロップダウンを表示、時間指定ありはそのまま表示
+      const needsTime = isOmakaseLine(line);
+      return `<div style="padding:7px 10px;border:1px solid rgba(139,111,71,0.25);border-radius:8px;margin-bottom:5px;background:white;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
+          <input type="radio" name="date_${r.id}" value="${line}" ${i===0?'checked':''} style="accent-color:var(--accent);">
+          <span>${clean}</span>
+        </label>
+        ${needsTime ? `<select id="time-sel-${r.id}-${i}" style="margin-top:6px;width:100%;padding:6px;border:1px solid rgba(139,111,71,0.3);border-radius:6px;font-size:12px;">${buildTimeOptsHtml(line)}</select>` : ''}
+      </div>`;
+    }).join('');
+    dateSelectHtml = `
+      <div style="margin:8px 0 4px;font-size:11px;color:var(--muted);font-weight:500;">希望日時を選択して承認</div>
+      ${options}`;
   } else if (r.status === 'pending' && timePrefLines.length > 0 && timePrefLines.some(isOmakaseLine)) {
     // 日付指定あり・時間おまかせ → 全希望日を表示して日付と時間を選択
     const dateOpts = timePrefLines.map((line, i) => {
