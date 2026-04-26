@@ -1202,19 +1202,16 @@ function getUsedMinutes(dateLabel) {
 }
 
 
-// 左2色ラインのHTML生成（残り枠数で濃淡を変える）
+// 左2色ラインのHTML生成
+// ⭐ 5状態を直接解釈：ok / ok-dim / cut / cut-dim / full
 function chipSideHtml(amStatus, pmStatus) {
-  // 空き枠数を数える（ok = 空き、cut-only = カットのみで空き）
-  const amOpen = amStatus === 'ok' || amStatus === 'cut-only';
-  const pmOpen = pmStatus === 'ok' || pmStatus === 'cut-only';
-  const openCount = (amOpen ? 1 : 0) + (pmOpen ? 1 : 0);
-  const isLastSlot = openCount <= 1; // 残り1枠以下なら薄い色
-
   function slotClass(st) {
     if (st === 'full')     return 'side-full';
     if (st === 'closed' || st === 'holiday') return 'side-off';
-    if (st === 'cut-only') return isLastSlot ? 'side-cut-dim' : 'side-cut';
-    if (st === 'ok')       return isLastSlot ? 'side-ok-dim'  : 'side-ok';
+    if (st === 'cut-dim')  return 'side-cut-dim';
+    if (st === 'cut' || st === 'cut-only') return 'side-cut';
+    if (st === 'ok-dim')   return 'side-ok-dim';
+    if (st === 'ok')       return 'side-ok';
     return 'side-ok';
   }
 
@@ -1242,12 +1239,11 @@ function getAvailabilityLevel(dateLabel) {
   const pm = settings.dayStatus[dateLabel + '_pm'] || base;
   // 両方満枠
   if (am === 'full' && pm === 'full') return 'full';
-  // 両方空き
+  // 両方完全空き
   if (am === 'ok' && pm === 'ok') return 'ok';
-  // どちらかがcut-only（黄色）
-  if (am === 'cut-only' || pm === 'cut-only') return 'some';
-  // 片方が満枠・片方が空き → カットのみ扱い
-  if (am === 'full' || pm === 'full') return 'some';
+  // ⭐ ok-dim / cut / cut-dim / cut-only いずれかが含まれる → 'some'
+  const isLimited = (s) => s === 'ok-dim' || s === 'cut' || s === 'cut-dim' || s === 'cut-only' || s === 'full';
+  if (isLimited(am) || isLimited(pm)) return 'some';
   return 'ok';
 }
 
@@ -1381,13 +1377,19 @@ function showDatePicker() {
       const avail = getAvailabilityLevel(dObj.label);
       const { am: amSt, pm: pmSt } = getDayStatuses(dObj.label);
       const isSelectable = avail !== 'few' && avail !== 'full';
-      const amOpen = amSt === 'ok' || amSt === 'cut-only';
-      const pmOpen = pmSt === 'ok' || pmSt === 'cut-only';
-      const openCount2 = (amOpen ? 1 : 0) + (pmOpen ? 1 : 0);
-      const isLast2 = openCount2 <= 1;
-      const amCls = amSt === 'full' ? 'side-full' : amSt === 'cut-only' ? (isLast2 ? 'side-cut-dim' : 'side-cut') : (isLast2 ? 'side-ok-dim' : 'side-ok');
-      const pmCls = pmSt === 'full' ? 'side-full' : pmSt === 'cut-only' ? (isLast2 ? 'side-cut-dim' : 'side-cut') : (isLast2 ? 'side-ok-dim' : 'side-ok');
-      const isCutOnlyDay = isSelectable && (amSt === 'cut-only' || pmSt === 'cut-only' || amSt === 'full' || pmSt === 'full');
+      // ⭐ 5状態を直接色に変換
+      function st2cls(st) {
+        if (st === 'full')     return 'side-full';
+        if (st === 'cut-dim')  return 'side-cut-dim';
+        if (st === 'cut' || st === 'cut-only') return 'side-cut';
+        if (st === 'ok-dim')   return 'side-ok-dim';
+        return 'side-ok';
+      }
+      const amCls = st2cls(amSt);
+      const pmCls = st2cls(pmSt);
+      // カット制限日の判定（cut/cut-dim/cut-only/fullいずれか）
+      const isCutLimit = (s) => s === 'cut' || s === 'cut-dim' || s === 'cut-only' || s === 'full';
+      const isCutOnlyDay = isSelectable && (isCutLimit(amSt) || isCutLimit(pmSt));
       chip.className = `d-chip${sunCls}${!isSelectable ? ' avail-few' : ''}`;
       chip.dataset.label = dObj.label;
       chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top ${amCls}"></div><div class="d-chip-side-bot ${pmCls}"></div></div><div class="d-chip-body"><span class="d-num">${day}</span></div>`;
@@ -1488,13 +1490,15 @@ function askTimeForDate(idx) {
       const lbl = sd.label;
       const am = settings.dayStatus[lbl + '_am'] || settings.dayStatus[lbl] || 'ok';
       const pm = settings.dayStatus[lbl + '_pm'] || settings.dayStatus[lbl] || 'ok';
-      // 選んだ時間帯のステータスがcut-only or fullかチェック
-      if (t.includes('午前') && am === 'cut-only') return true;
-      if (t.includes('午後') && pm === 'cut-only') return true;
+      // ⭐ カット制限状態（cut / cut-dim / cut-only いずれか）を判定
+      const isCut = (s) => s === 'cut' || s === 'cut-dim' || s === 'cut-only';
+      // 選んだ時間帯のステータスがカット制限 or fullかチェック
+      if (t.includes('午前') && isCut(am)) return true;
+      if (t.includes('午後') && isCut(pm)) return true;
       if (t.includes('午前') && am === 'full') return false; // 午前満枠は選べないはずだが念のため
       if (t.includes('午後') && pm === 'full') return false;
-      // おまかせの場合は両方cut-onlyなら制限
-      if (t.includes('おまかせ') && am === 'cut-only' && pm === 'cut-only') return true;
+      // おまかせの場合は両方カット制限なら制限
+      if (t.includes('おまかせ') && isCut(am) && isCut(pm)) return true;
       return false;
     });
     // 日程確定後→メニュー選択へ
@@ -1652,7 +1656,9 @@ function askTimeForDate(idx) {
     const btn = document.createElement('button');
     btn.className = 'c-btn';
     const isFull = z.value === '午前' ? amFull : z.value === '午後' ? pmFull : false;
-    const isCutOnly = z.value === '午前' ? amSt === 'cut-only' : z.value === '午後' ? pmSt === 'cut-only' : false;
+    // ⭐ cut / cut-dim / cut-only いずれもカット制限と判定
+    const isCutSt = (s) => s === 'cut' || s === 'cut-dim' || s === 'cut-only';
+    const isCutOnly = z.value === '午前' ? isCutSt(amSt) : z.value === '午後' ? isCutSt(pmSt) : false;
     if (isFull) {
       btn.textContent = `${z.label}（満枠）`;
       btn.disabled = true;
@@ -2831,19 +2837,25 @@ function renderAdminCalendar() {
         // 通常日：午前・午後それぞれタップで切り替え
         const amStatus = settings.dayStatus[label + '_am'] || settings.dayStatus[label] || 'ok';
         const pmStatus = settings.dayStatus[label + '_pm'] || settings.dayStatus[label] || 'ok';
-        // 空き枠数で濃淡を決定（2枠=濃い、1枠=薄い）
-        const amOpen = amStatus === 'ok' || amStatus === 'cut-only';
-        const pmOpen = pmStatus === 'ok' || pmStatus === 'cut-only';
-        const openCount = (amOpen ? 1 : 0) + (pmOpen ? 1 : 0);
-        const isLast = openCount <= 1;
-        const amCls = amStatus === 'full' ? 'side-full'
-          : amStatus === 'cut-only' ? (isLast ? 'side-cut-dim' : 'side-cut')
-          : amStatus === 'ok' ? (isLast ? 'side-ok-dim' : 'side-ok')
-          : 'side-off';
-        const pmCls = pmStatus === 'full' ? 'side-full'
-          : pmStatus === 'cut-only' ? (isLast ? 'side-cut-dim' : 'side-cut')
-          : pmStatus === 'ok' ? (isLast ? 'side-ok-dim' : 'side-ok')
-          : 'side-off';
+        // ⭐ 5状態を直接色に変換（ok / ok-dim / cut / cut-dim / full）
+        function st2cls2(st) {
+          if (st === 'full')     return 'side-full';
+          if (st === 'cut-dim')  return 'side-cut-dim';
+          if (st === 'cut' || st === 'cut-only') return 'side-cut';
+          if (st === 'ok-dim')   return 'side-ok-dim';
+          if (st === 'ok')       return 'side-ok';
+          return 'side-off';
+        }
+        // 表示ラベル
+        function stLabel(st) {
+          if (st === 'full')    return '満';
+          if (st === 'cut-dim') return 'カ少';
+          if (st === 'cut' || st === 'cut-only') return 'カット';
+          if (st === 'ok-dim')  return '残少';
+          return '空';
+        }
+        const amCls = st2cls2(amStatus);
+        const pmCls = st2cls2(pmStatus);
         chip.className = `d-chip${sunCls}`;
         chip.style.cursor = 'pointer';
         chip.innerHTML = `
@@ -2854,16 +2866,23 @@ function renderAdminCalendar() {
           <div class="d-chip-body">
             <span class="d-num">${day}</span>
             <span class="d-name" style="font-size:8px;line-height:1.3;">
-              <span style="display:block;">前:${amStatus==='ok'?'空':amStatus==='cut-only'?'カット':'満'}</span>
-              <span style="display:block;">後:${pmStatus==='ok'?'空':pmStatus==='cut-only'?'カット':'満'}</span>
+              <span style="display:block;">前:${stLabel(amStatus)}</span>
+              <span style="display:block;">後:${stLabel(pmStatus)}</span>
             </span>
           </div>`;
+        // ⭐ 5段階サイクル：ok → ok-dim → cut → cut-dim → full → ok
+        function nextStatus(cur) {
+          if (cur === 'ok') return 'ok-dim';
+          if (cur === 'ok-dim') return 'cut';
+          if (cur === 'cut' || cur === 'cut-only') return 'cut-dim';
+          if (cur === 'cut-dim') return 'full';
+          return 'ok';
+        }
         // 午前ラインタップ
         chip.querySelector('[data-part="am"]').onclick = (e) => {
           e.stopPropagation();
           const cur = settings.dayStatus[label + '_am'] || settings.dayStatus[label] || 'ok';
-          const next = cur === 'ok' ? 'cut-only' : cur === 'cut-only' ? 'full' : 'ok';
-          settings.dayStatus[label + '_am'] = next;
+          settings.dayStatus[label + '_am'] = nextStatus(cur);
           // 古い全体キーを削除して個別キーに移行
           delete settings.dayStatus[label];
           localStorage.setItem('hs_settings', JSON.stringify(settings));
@@ -2874,8 +2893,7 @@ function renderAdminCalendar() {
         chip.querySelector('[data-part="pm"]').onclick = (e) => {
           e.stopPropagation();
           const cur = settings.dayStatus[label + '_pm'] || settings.dayStatus[label] || 'ok';
-          const next = cur === 'ok' ? 'cut-only' : cur === 'cut-only' ? 'full' : 'ok';
-          settings.dayStatus[label + '_pm'] = next;
+          settings.dayStatus[label + '_pm'] = nextStatus(cur);
           // 古い全体キーを削除して個別キーに移行
           delete settings.dayStatus[label];
           localStorage.setItem('hs_settings', JSON.stringify(settings));
@@ -3134,9 +3152,14 @@ function makeCard(r) {
 }
 
 // ========================================
-// Google Apps Script のURL（デプロイ後に貼り付け）
+// Google Apps Script のURL
 // ========================================
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbz3sSqXROiKCo9haTdDv8niP7EVtBQ6sZ6j9VOtHs4GgQSWFwEDKAwQHvUMetRepn55oQ/exec';
+// ⚠️ 重要：Admin.gs をデプロイした「ウェブアプリのURL」を貼り付けてください
+//   1. Apps Scriptエディタで「デプロイ」→「新しいデプロイ」
+//   2. 種類：ウェブアプリ／実行：自分／アクセス：全員
+//   3. 発行されたURL（/exec で終わる）を下に貼り付け
+//   4. Admin.gs を変更したら必ず「デプロイの管理」→新バージョンを作成
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyCTo95I98Oqgk59lOWhcQDAgmQzPIcA8_LvPmsyqmgLpCMw_vs8TjYcbbZWvtanm4C3w/exec';
 
 // ============================================================
 // LINE通知 + スプレッドシート保存
@@ -3195,10 +3218,49 @@ function saveBookingToSpreadsheet(booking) {
 }
 
 // ============================================================
+// スプレッドシートからカレンダー設定を取得（休業日・午前午後の手動設定）
+// ⭐ 管理画面で設定した内容をお客様画面に反映するための関数
+// ============================================================
+async function syncSettingsFromSheet(force = false) {
+  if (!GAS_URL || GAS_URL === 'YOUR_GAS_URL_HERE') return;
+
+  // 5分以内のキャッシュがあればスキップ（強制フラグなし時）
+  if (!force) {
+    const lastFetch = parseInt(localStorage.getItem('hs_settings_last_fetch') || '0');
+    if (Date.now() - lastFetch < 5 * 60 * 1000) {
+      console.log('設定取得スキップ（キャッシュ有効）');
+      return;
+    }
+  }
+
+  try {
+    const res = await fetch(`${GAS_URL}?action=getSettings`);
+    const json = await res.json();
+    if (json.success && json.settings) {
+      // 既存のlocalStorageを土台に、シートの内容で上書き
+      const local = JSON.parse(localStorage.getItem('hs_settings') || '{"maxHours":8,"closedDates":[],"dayStatus":{}}');
+      const merged = Object.assign({}, local, json.settings);
+      // dayStatusとclosedDatesはシート側を「正」として完全置換
+      merged.dayStatus = json.settings.dayStatus || {};
+      merged.closedDates = json.settings.closedDates || [];
+      settings = merged;
+      localStorage.setItem('hs_settings', JSON.stringify(settings));
+      localStorage.setItem('hs_settings_last_fetch', Date.now().toString());
+      console.log('設定同期完了:', Object.keys(settings.dayStatus||{}).length + '件のday設定 / ' + (settings.closedDates||[]).length + '件の休業日');
+    }
+  } catch (e) {
+    console.log('設定同期エラー（無視）:', e);
+  }
+}
+
+// ============================================================
 // Googleカレンダーから空き枠を取得してカレンダー色を自動更新
 // ============================================================
 async function syncCalendarStatus(force = false) {
   if (!GAS_URL || GAS_URL === 'YOUR_GAS_URL_HERE') return;
+
+  // ⭐ まずシートの手動設定（休業日・午前午後の固定）を取得
+  await syncSettingsFromSheet(force);
 
   // 5分以内のキャッシュがあればスキップ（強制フラグなし時）
   if (!force) {
@@ -3215,8 +3277,12 @@ async function syncCalendarStatus(force = false) {
     const json = await res.json();
     if (json.success && json.status) {
       if (!settings.dayStatus) settings.dayStatus = {};
+      // ⭐ Googleカレンダー由来のステータスは「シートの手動設定が無い日付だけ」上書き
+      //    → 管理画面で「休業」や「午前のみ」と手動設定した内容を潰さない
       Object.keys(json.status).forEach(key => {
-        settings.dayStatus[key] = json.status[key];
+        if (settings.dayStatus[key] === undefined) {
+          settings.dayStatus[key] = json.status[key];
+        }
       });
       localStorage.setItem('hs_settings', JSON.stringify(settings));
       localStorage.setItem('hs_last_sync', Date.now().toString());
@@ -4234,6 +4300,17 @@ function showToast(text) {
 // ===== 初期化 =====
 window.onload = () => {
   updateBadge();
+
+  // ⭐ 起動直後にスプレッドシートから最新の設定を取得（休業日・午前午後の手動設定）
+  //    awaitしないので画面表示はブロックしない（取得後に自動でカレンダー再描画）
+  syncSettingsFromSheet(true).then(() => {
+    // 設定取得後にカレンダーを再描画して反映
+    if (typeof refreshCustomerCalendar === 'function') refreshCustomerCalendar();
+    if (typeof renderAdminCalendar === 'function') {
+      try { renderAdminCalendar(); } catch(e) {}
+    }
+  });
+
   // 会話履歴の復元
   const history = JSON.parse(localStorage.getItem('hs_chat_history') || '[]');
   if (history.length > 0) {
