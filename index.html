@@ -1283,131 +1283,112 @@ function showDatePicker() {
     }
   }
 
-  // 日付を月ごとにグループ化
-  const monthMap = {};
-  dates.forEach(d => {
-    const key = `${d.date.getFullYear()}-${d.date.getMonth()}`;
-    if (!monthMap[key]) monthMap[key] = { year: d.date.getFullYear(), month: d.date.getMonth(), dates: [] };
-    monthMap[key].dates.push(d);
-  });
-
+  // 今週の日曜から4週間グリッドを生成
   const allChips = [];
   const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
   const dayNames = ['日','月','火','水','木','金','土'];
 
-  Object.values(monthMap).forEach(({ year, month, dates: mDates }) => {
-    // 月ラベル
-    const mLabel = document.createElement('div');
-    mLabel.className = 'cal-month-label';
-    mLabel.textContent = `${year}年 ${monthNames[month]}`;
-    calWrap.appendChild(mLabel);
+  const today4w = new Date(); today4w.setHours(0,0,0,0);
+  const startSunday = new Date(today4w);
+  startSunday.setDate(today4w.getDate() - today4w.getDay());
+  const endDate4w = new Date(startSunday); endDate4w.setDate(startSunday.getDate() + 27);
 
-    // 曜日ヘッダー
-    const header = document.createElement('div');
-    header.className = 'cal-header';
-    dayNames.forEach(n => {
-      const s = document.createElement('span');
-      s.textContent = n;
-      header.appendChild(s);
-    });
-    calWrap.appendChild(header);
+  // 月ラベル
+  let mLabelText = `${startSunday.getFullYear()}年 ${monthNames[startSunday.getMonth()]}`;
+  if (startSunday.getMonth() !== endDate4w.getMonth()) {
+    mLabelText += ` ／ ${endDate4w.getFullYear() !== startSunday.getFullYear() ? endDate4w.getFullYear() + '年 ' : ''}${monthNames[endDate4w.getMonth()]}`;
+  }
+  const mLabel = document.createElement('div');
+  mLabel.className = 'cal-month-label';
+  mLabel.textContent = mLabelText;
+  calWrap.appendChild(mLabel);
 
-    // グリッド
-    const grid = document.createElement('div');
-    grid.className = 'cal-grid';
+  // 曜日ヘッダー
+  const header = document.createElement('div');
+  header.className = 'cal-header';
+  dayNames.forEach(n => { const s = document.createElement('span'); s.textContent = n; header.appendChild(s); });
+  calWrap.appendChild(header);
 
-    // 月初の空白
-    const firstDay = new Date(year, month, 1).getDay();
-    for (let i = 0; i < firstDay; i++) {
-      const empty = document.createElement('div');
-      empty.className = 'd-chip empty';
-      grid.appendChild(empty);
-    }
+  // 28日分グリッド
+  const grid = document.createElement('div');
+  grid.className = 'cal-grid';
 
-    // 月内の全日を埋める
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dObj = mDates.find(d => d.date.getDate() === day);
-      const chip = document.createElement('div');
-      const dow = new Date(year, month, day).getDay();
-      const sunCls = dow === 0 ? ' sun' : dow === 6 ? ' sat' : '';
+  for (let i = 0; i < 28; i++) {
+    const cur = new Date(startSunday); cur.setDate(startSunday.getDate() + i);
+    const dow = cur.getDay();
+    const month = cur.getMonth(); const day = cur.getDate();
+    const dateStr = `${month+1}/${day}`;
+    const dObj = dates.find(d => d.label === dateStr);
+    const chip = document.createElement('div');
+    const sunCls = dow === 0 ? ' sun' : dow === 6 ? ' sat' : '';
+    const isPast = cur < today4w;
 
-      if (!dObj) {
-        // 月曜日は定休日として表示
-        if (dow === 1) {
-          chip.className = `d-chip holiday${sunCls}`;
-          chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休日</span></div>`;
-        } else {
-          // 過去日・範囲外
-          chip.className = `d-chip disabled${sunCls}`;
-          chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span></div>`;
-        }
-      } else if (dObj.closed) {
-        chip.className = `d-chip holiday${sunCls}`;
-        chip.dataset.label = dObj.label;
-        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休日</span></div>`;
-      } else if (dObj.full) {
-        chip.className = `d-chip full${sunCls}`;
-        chip.dataset.label = dObj.label;
-        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-full"></div><div class="d-chip-side-bot side-full"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">満枠</span></div>`;
-      } else {
-        const avail = getAvailabilityLevel(dObj.label);
-        const { am: amSt, pm: pmSt } = getDayStatuses(dObj.label);
-        const isSelectable = avail !== 'few' && avail !== 'full';
-        const amCls = amSt === 'full' ? 'side-full' : amSt === 'cut-only' ? 'side-cut' : 'side-ok';
-        const pmCls = pmSt === 'full' ? 'side-full' : pmSt === 'cut-only' ? 'side-cut' : 'side-ok';
-        // 黄色の日：どちらかがcut-only、または片方が満枠で両方は満枠でない
-        const isCutOnlyDay = isSelectable && (amSt === 'cut-only' || pmSt === 'cut-only' || amSt === 'full' || pmSt === 'full');
-        chip.className = `d-chip${sunCls}${!isSelectable ? ' avail-few' : ''}`;
-        chip.dataset.label = dObj.label;
-        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top ${amCls}"></div><div class="d-chip-side-bot ${pmCls}"></div></div><div class="d-chip-body"><span class="d-num">${day}</span></div>`;
-        if (isSelectable) {
-          chip.onclick = () => {
-            const idx = selectedDates.findIndex(x => x.label === dObj.label);
-            const body = chip.querySelector('.d-chip-body');
-            if (idx >= 0) {
-              selectedDates.splice(idx, 1);
-              chip.classList.remove('selected');
-              // 番号ラベルを削除
-              const nameEl = body.querySelector('.d-name');
-              if (nameEl) nameEl.remove();
-              // 振り直し
-              allChips.forEach(c => {
-                if (c.classList.contains('selected')) {
-                  const di = selectedDates.findIndex(x => x.label === c._dLabel);
-                  const nb = c.querySelector('.d-chip-body');
-                  const ne = nb && nb.querySelector('.d-name');
-                  if (di >= 0 && ne) ne.textContent = `第${di+1}希望`;
-                }
-              });
-            } else if (selectedDates.length < 3) {
-              selectedDates.push({ ...dObj, cutOnly: isCutOnlyDay });
-              chip.classList.add('selected');
-              // 番号ラベルを追加
-              let nameEl = body.querySelector('.d-name');
-              if (!nameEl) {
-                nameEl = document.createElement('span');
-                nameEl.className = 'd-name';
-                body.appendChild(nameEl);
+    if (isPast) {
+      chip.className = `d-chip disabled${sunCls}`;
+      chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span></div>`;
+    } else if (dow === 1) {
+      chip.className = `d-chip holiday${sunCls}`;
+      chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休</span></div>`;
+    } else if (!dObj) {
+      chip.className = `d-chip disabled${sunCls}`;
+      chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span></div>`;
+    } else if (dObj.closed) {
+      chip.className = `d-chip holiday${sunCls}`;
+      chip.dataset.label = dObj.label;
+      chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休</span></div>`;
+    } else if (dObj.full) {
+      chip.className = `d-chip full${sunCls}`;
+      chip.dataset.label = dObj.label;
+      chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-full"></div><div class="d-chip-side-bot side-full"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">満枠</span></div>`;
+    } else {
+      const avail = getAvailabilityLevel(dObj.label);
+      const { am: amSt, pm: pmSt } = getDayStatuses(dObj.label);
+      const isSelectable = avail !== 'few' && avail !== 'full';
+      const amCls = amSt === 'full' ? 'side-full' : amSt === 'cut-only' ? 'side-cut' : 'side-ok';
+      const pmCls = pmSt === 'full' ? 'side-full' : pmSt === 'cut-only' ? 'side-cut' : 'side-ok';
+      const isCutOnlyDay = isSelectable && (amSt === 'cut-only' || pmSt === 'cut-only' || amSt === 'full' || pmSt === 'full');
+      chip.className = `d-chip${sunCls}${!isSelectable ? ' avail-few' : ''}`;
+      chip.dataset.label = dObj.label;
+      chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top ${amCls}"></div><div class="d-chip-side-bot ${pmCls}"></div></div><div class="d-chip-body"><span class="d-num">${day}</span></div>`;
+      if (isSelectable) {
+        chip.onclick = () => {
+          const idx = selectedDates.findIndex(x => x.label === dObj.label);
+          const body = chip.querySelector('.d-chip-body');
+          if (idx >= 0) {
+            selectedDates.splice(idx, 1);
+            chip.classList.remove('selected');
+            const nameEl = body.querySelector('.d-name');
+            if (nameEl) nameEl.remove();
+            allChips.forEach(c => {
+              if (c.classList.contains('selected')) {
+                const di = selectedDates.findIndex(x => x.label === c._dLabel);
+                const nb = c.querySelector('.d-chip-body');
+                const ne = nb && nb.querySelector('.d-name');
+                if (di >= 0 && ne) ne.textContent = `第${di+1}希望`;
               }
-              nameEl.textContent = `第${selectedDates.length}希望`;
-            }
-            confirmBtn.style.display = selectedDates.length > 0 ? 'block' : 'none';
-            confirmBtn.textContent = `選択した${selectedDates.length}日で次へ →`;
-            updateWarnBox();
-          };
-          chip._dLabel = dObj.label;
-          allChips.push(chip);
-        } else {
-          chip.style.cursor = 'default';
-          chip.style.pointerEvents = 'none';
-          chip.style.opacity = '0.6';
-        }
+            });
+          } else if (selectedDates.length < 3) {
+            selectedDates.push({ ...dObj, cutOnly: isCutOnlyDay });
+            chip.classList.add('selected');
+            let nameEl = body.querySelector('.d-name');
+            if (!nameEl) { nameEl = document.createElement('span'); nameEl.className = 'd-name'; body.appendChild(nameEl); }
+            nameEl.textContent = `第${selectedDates.length}希望`;
+          }
+          confirmBtn.style.display = selectedDates.length > 0 ? 'block' : 'none';
+          confirmBtn.textContent = `選択した${selectedDates.length}日で次へ →`;
+          updateWarnBox();
+        };
+        chip._dLabel = dObj.label;
+        allChips.push(chip);
+      } else {
+        chip.style.cursor = 'default';
+        chip.style.pointerEvents = 'none';
+        chip.style.opacity = '0.6';
       }
-      grid.appendChild(chip);
     }
-    calWrap.appendChild(grid);
-  });
+    grid.appendChild(chip);
+  }
+  calWrap.appendChild(grid);
 
   const confirmBtn = document.createElement('button');
   confirmBtn.className = 'cal-confirm-btn';
