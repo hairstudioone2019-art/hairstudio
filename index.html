@@ -267,10 +267,12 @@ body::before {
 .d-chip.holiday .d-name { color:#c8c0b8; }
 .d-chip.holiday .d-chip-side-top,.d-chip.holiday .d-chip-side-bot { background:#d8d4d0; }
 /* 左ラインの色 */
-.side-ok   { background:#4a9fd4; }
-.side-cut  { background:#f5aa00; }
-.side-full { background:#e03030; }
-.side-off  { background:#d8d4d0; }
+.side-ok      { background:#4a9fd4; }   /* 青：残り1枠 */
+.side-ok-dim  { background:#a8d4ef; }   /* 薄青：残り2枠以上 */
+.side-cut     { background:#f5aa00; }   /* 黄：残り1枠カットのみ */
+.side-cut-dim { background:#fad97a; }   /* 薄黄：残り2枠以上カットのみ */
+.side-full    { background:#e03030; }
+.side-off     { background:#d8d4d0; }
 /* 選択状態 */
 .d-chip.selected .d-chip-side-top,.d-chip.selected .d-chip-side-bot { opacity:0.7; }
 /* 管理カレンダー用 */
@@ -1201,11 +1203,24 @@ function getUsedMinutes(dateLabel) {
 }
 
 
-// 左2色ラインのHTML生成
+// 左2色ラインのHTML生成（残り枠数で濃淡を変える）
 function chipSideHtml(amStatus, pmStatus) {
-  const cls = { ok:'side-ok', 'cut-only':'side-cut', full:'side-full', closed:'side-off', holiday:'side-off' };
-  const am = cls[amStatus] || 'side-ok';
-  const pm = cls[pmStatus] || 'side-ok';
+  // 空き枠数を数える（ok = 空き、cut-only = カットのみで空き）
+  const amOpen = amStatus === 'ok' || amStatus === 'cut-only';
+  const pmOpen = pmStatus === 'ok' || pmStatus === 'cut-only';
+  const openCount = (amOpen ? 1 : 0) + (pmOpen ? 1 : 0);
+  const isLastSlot = openCount <= 1; // 残り1枠以下なら濃い色
+
+  function slotClass(st) {
+    if (st === 'full')     return 'side-full';
+    if (st === 'closed' || st === 'holiday') return 'side-off';
+    if (st === 'cut-only') return isLastSlot ? 'side-cut' : 'side-cut-dim';
+    if (st === 'ok')       return isLastSlot ? 'side-ok'  : 'side-ok-dim';
+    return 'side-ok-dim';
+  }
+
+  const am = slotClass(amStatus);
+  const pm = slotClass(pmStatus);
   return `<div class="d-chip-side"><div class="d-chip-side-top ${am}"></div><div class="d-chip-side-bot ${pm}"></div></div>`;
 }
 
@@ -1367,8 +1382,12 @@ function showDatePicker() {
       const avail = getAvailabilityLevel(dObj.label);
       const { am: amSt, pm: pmSt } = getDayStatuses(dObj.label);
       const isSelectable = avail !== 'few' && avail !== 'full';
-      const amCls = amSt === 'full' ? 'side-full' : amSt === 'cut-only' ? 'side-cut' : 'side-ok';
-      const pmCls = pmSt === 'full' ? 'side-full' : pmSt === 'cut-only' ? 'side-cut' : 'side-ok';
+      const amOpen = amSt === 'ok' || amSt === 'cut-only';
+      const pmOpen = pmSt === 'ok' || pmSt === 'cut-only';
+      const openCount2 = (amOpen ? 1 : 0) + (pmOpen ? 1 : 0);
+      const isLast2 = openCount2 <= 1;
+      const amCls = amSt === 'full' ? 'side-full' : amSt === 'cut-only' ? (isLast2 ? 'side-cut' : 'side-cut-dim') : (isLast2 ? 'side-ok' : 'side-ok-dim');
+      const pmCls = pmSt === 'full' ? 'side-full' : pmSt === 'cut-only' ? (isLast2 ? 'side-cut' : 'side-cut-dim') : (isLast2 ? 'side-ok' : 'side-ok-dim');
       const isCutOnlyDay = isSelectable && (amSt === 'cut-only' || pmSt === 'cut-only' || amSt === 'full' || pmSt === 'full');
       chip.className = `d-chip${sunCls}${!isSelectable ? ' avail-few' : ''}`;
       chip.dataset.label = dObj.label;
