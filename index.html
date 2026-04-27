@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<!-- HairStudio ONE v3.1 - 2026/04/27
-     v3.0: 下部入力欄・送信ボタン廃止 / 名前入力をインラインテキストボックスに変更 / メッセージ予約タブ廃止・LINE誘導方式に変更
-     v3.1: 常連のデザインパーマ・おしゃれ染め・インナーカラーのカウンセリングを廃止 -->
+<!-- HairStudio ONE v3.2 - 2026/04/27
+     v3.0: 下部入力欄・送信ボタン廃止 / 名前入力インラインテキストボックス化 / メッセージ予約廃止・LINE誘導方式に
+     v3.1: 常連のデザインパーマ・おしゃれ染め・インナーカラーのカウンセリング廃止 / リロード時に毎回最初から開始
+     v3.2: 備考欄「特になし（スキップ）」→「メニューに戻る」に変更 -->
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -892,7 +893,7 @@ function showNotesFinal() {
   const skipBtn = document.createElement('button');
   skipBtn.className = 'c-btn';
   skipBtn.style.cssText = 'margin-top:5px;width:100%;font-size:11px;color:var(--muted);border-color:rgba(155,142,130,0.3);';
-  skipBtn.textContent = '特になし（スキップ）';
+  skipBtn.textContent = '← メニューに戻る';
 
   const submit = () => {
     textarea.disabled = true;
@@ -906,8 +907,17 @@ function showNotesFinal() {
 
   doneBtn.onclick = submit;
   skipBtn.onclick = () => {
-    textarea.value = '';
-    submit();
+    textarea.disabled = true;
+    doneBtn.disabled = true;
+    skipBtn.disabled = true;
+    userMsg('← メニューに戻る');
+    const savedTimePref = bk.timePref;
+    const savedDatesStr = bk.datesStr;
+    const savedDates = bk.dates;
+    const savedDateTimePref = bk.dateTimePref;
+    step = 'cutMenu';
+    bk = { name: bk.name, lineId: bk.lineId, lineUserId: bk.lineUserId, timePref: savedTimePref, datesStr: savedDatesStr, dates: savedDates, dateTimePref: savedDateTimePref };
+    setTimeout(() => showCutMenuPicker('カットメニューをお選びください。'), 300);
   };
 
   bub.appendChild(textarea);
@@ -1426,7 +1436,7 @@ function showDatePicker() {
       const full = keys.filter(k => ds[k] === 'full').length;
       const lastSync = parseInt(localStorage.getItem('hs_settings_last_fetch') || '0');
       const ago = lastSync ? Math.round((Date.now() - lastSync) / 1000) + '秒前' : '未取得';
-      dbgEl.textContent = `v3.1 | 全${keys.length}件 (青${ok}/薄青${okDim}/黄${cut}/薄黄${cutDim}/赤${full}) | 最終取得:${ago}`;
+      dbgEl.textContent = `v3.2 | 全${keys.length}件 (青${ok}/薄青${okDim}/黄${cut}/薄黄${cutDim}/赤${full}) | 最終取得:${ago}`;
     }
   }, 100);
   bub.appendChild(calWrap);
