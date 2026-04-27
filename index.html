@@ -2883,6 +2883,8 @@ function renderAdminCalendar() {
           e.stopPropagation();
           const cur = settings.dayStatus[label + '_am'] || settings.dayStatus[label] || 'ok';
           settings.dayStatus[label + '_am'] = nextStatus(cur);
+          // ⭐ 手動設定マーカーを立てる（次回同期で上書きされない）
+          settings.dayStatus[label + '_manual'] = true;
           // 古い全体キーを削除して個別キーに移行
           delete settings.dayStatus[label];
           localStorage.setItem('hs_settings', JSON.stringify(settings));
@@ -2894,6 +2896,8 @@ function renderAdminCalendar() {
           e.stopPropagation();
           const cur = settings.dayStatus[label + '_pm'] || settings.dayStatus[label] || 'ok';
           settings.dayStatus[label + '_pm'] = nextStatus(cur);
+          // ⭐ 手動設定マーカーを立てる
+          settings.dayStatus[label + '_manual'] = true;
           // 古い全体キーを削除して個別キーに移行
           delete settings.dayStatus[label];
           localStorage.setItem('hs_settings', JSON.stringify(settings));
@@ -3277,21 +3281,34 @@ async function syncCalendarStatus(force = false) {
     const json = await res.json();
     if (json.success && json.status) {
       if (!settings.dayStatus) settings.dayStatus = {};
-      // ⭐ Googleカレンダー由来のステータスは「シートの手動設定が無い日付だけ」上書き
-      //    → 管理画面で「休業」や「午前のみ」と手動設定した内容を潰さない
+      // ⭐ Googleカレンダー由来のステータスを反映
+      //    手動設定マーカー（_manual キー）が立っている日付だけは保護
       Object.keys(json.status).forEach(key => {
-        if (settings.dayStatus[key] === undefined) {
+        // _am / _pm キーから日付部分を抜き出す
+        const dateBase = key.replace(/_am$|_pm$/, '');
+        const isManual = settings.dayStatus[dateBase + '_manual'] === true;
+        if (!isManual) {
           settings.dayStatus[key] = json.status[key];
         }
       });
       localStorage.setItem('hs_settings', JSON.stringify(settings));
       localStorage.setItem('hs_last_sync', Date.now().toString());
-      renderAdminCalendar();
-      updateAdminCalendarLastSync();
-      console.log('カレンダーステータス同期完了:', Object.keys(json.status).length + '日分');
+      if (typeof renderAdminCalendar === 'function') {
+        try { renderAdminCalendar(); } catch(e) {}
+      }
+      if (typeof updateAdminCalendarLastSync === 'function') {
+        try { updateAdminCalendarLastSync(); } catch(e) {}
+      }
+      // ⭐ お客様用カレンダーも再描画
+      if (typeof refreshCustomerCalendar === 'function') {
+        try { refreshCustomerCalendar(); } catch(e) {}
+      }
+      console.log('カレンダーステータス同期完了:', Object.keys(json.status).length + '件 反映');
+    } else {
+      console.log('同期失敗:', json);
     }
   } catch (e) {
-    console.log('カレンダー同期エラー（無視）:', e);
+    console.log('カレンダー同期エラー:', e);
   }
 }
 
