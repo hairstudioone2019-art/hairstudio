@@ -3313,8 +3313,8 @@ async function syncCalendarStatus(force = false) {
   }
 
   try {
-    // 14日分のみ取得（30日→14日で高速化）
-    const res = await fetch(`${GAS_URL}?action=getStatus&days=14`);
+    // 28日分取得（カレンダー表示が4週間=28日のため）
+    const res = await fetch(`${GAS_URL}?action=getStatus&days=28`);
     const json = await res.json();
     if (json.success && json.status) {
       if (!settings.dayStatus) settings.dayStatus = {};
