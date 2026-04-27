@@ -2717,8 +2717,18 @@ async function renderAdmin() {
   renderClosedDates();
   renderAdminCalendar();
   updateAdminCalendarLastSync();
-  // GASからスプレッドシートのデータを取得して反映
+  // ローディング表示
+  const container = document.getElementById('requests-list');
+  if (container) container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;">🔄 データを読み込み中...</div>';
   await syncBookingsFromSheet();
+  renderRequests();
+}
+
+// 同期なしで即座に画面を更新（承認・断りなど操作後に使う）
+function renderAdminLocal() {
+  renderClosedDates();
+  renderAdminCalendar();
+  updateAdminCalendarLastSync();
   renderRequests();
 }
 
@@ -2726,40 +2736,40 @@ async function renderAdmin() {
 async function syncBookingsFromSheet() {
   if (!GAS_URL) return;
   try {
-    const res = await fetch(`${GAS_URL}?action=getBookings`);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const res = await fetch(`${GAS_URL}?action=getBookings`, { signal: ctrl.signal });
+    clearTimeout(timer);
     const data = await res.json();
-    if (!data.success || !data.bookings) return;
+    if (!data.success || !Array.isArray(data.bookings)) return;
 
     const sheetBookings = data.bookings;
     const localBookings = JSON.parse(localStorage.getItem('hs_requests') || '[]');
     const sheetIds = new Set(sheetBookings.map(b => String(b.id)));
-
-    // シートにないlocalのデータ（まだ送信中 or 失敗分）を残す
     const localOnly = localBookings.filter(b => !sheetIds.has(String(b.id)));
 
-    // シートのデータとlocalをマージ
-    // ⭐ lineUserId はシート・local 両方から取れる方を優先
     const merged = sheetBookings.map(sb => {
       const local = localBookings.find(lb => String(lb.id) === String(sb.id));
       if (local) {
-        // local を土台にシートのステータスで更新、lineUserId はどちらかある方を使う
         return Object.assign({}, local, {
           status: sb.status,
           lineUserId: local.lineUserId || sb.lineUserId || '',
           lineId: local.lineId || sb.lineId || '',
         });
       } else {
-        // local にない場合はシートのデータをそのまま使う（lineUserId含む）
         return sb;
       }
     });
 
     const final = [...merged, ...localOnly];
+    // GAS側の問題でデータが0件になってもlocalを消さない
+    if (final.length === 0 && localBookings.length > 0) return;
     localStorage.setItem('hs_requests', JSON.stringify(final));
     requests = final;
     updateBadge();
   } catch(e) {
-    console.log('シート同期エラー:', e);
+    console.log('シート同期エラー（localデータを維持）:', e);
+    requests = JSON.parse(localStorage.getItem('hs_requests') || '[]');
   }
 }
 
@@ -3462,7 +3472,7 @@ function approveWithDate(id) {
     sendToGoogleCalendar(r);
     showToast(`${r.name}様の予約を確定しました！`);
     updateBadge();
-    renderAdmin();
+    renderAdminLocal();
     showConfirmedMessage(r);
     // タブをお客様側に切り替え
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -3547,7 +3557,7 @@ function _doApproveWithDate(id, r, resolvedDate) {
   localStorage.setItem('hs_requests', JSON.stringify(requests));
   showToast(`${r.name}様へ日時を提案しました。お客様の確認をお待ちください`);
   updateBadge();
-  renderAdmin();
+  renderAdminLocal();
   // お客様チャット側に確認ボタン付きメッセージを表示
   showProposalMessage(r);
 }
@@ -3564,7 +3574,7 @@ function confirmCustomerApproval(id) {
   sendToGoogleCalendar(r);
   showToast(`${r.name}様の予約が確定しました！`);
   updateBadge();
-  renderAdmin();
+  renderAdminLocal();
   showConfirmedMessage(r);
 }
 
@@ -3581,7 +3591,7 @@ function requestReschedule(id) {
   localStorage.setItem('hs_requests', JSON.stringify(requests));
   showToast(`${r.name}様が別の日時を希望されました`);
   updateBadge();
-  renderAdmin();
+  renderAdminLocal();
   showRescheduleMessage(r);
 }
 
@@ -3595,7 +3605,7 @@ function approve(id) {
   updateSheetStatus(r.id, 'approved');
   showToast(`${r.name}様の予約を承認しました`);
   updateBadge();
-  renderAdmin();
+  renderAdminLocal();
   // チャット側に承認メッセージを表示
   showReplyMessage('approved', r);
 }
@@ -3620,7 +3630,7 @@ function reject(id) {
   localStorage.setItem('hs_requests', JSON.stringify(requests));
   showToast(`${r.name}様の申請をお断りしました`);
   updateBadge();
-  renderAdmin();
+  renderAdminLocal();
   // チャット側に断りメッセージを表示
   showReplyMessage('rejected', r);
 }
@@ -3822,6 +3832,18 @@ function showProposalMessage(r) {
   wrap.appendChild(bub);
   chat.appendChild(wrap);
   chat.scrollTop = chat.scrollHeight;
+
+  // ⭐ お客様のLINEに日時提案を送信
+  if (r.lineUserId && GAS_URL) {
+    const lineProposalMsg = `【Hair Studio ONE】\nご希望の日時を承りました😊\n\n下記の日時でご案内できます✂️\n\n📅 日時：${dateText}\n💇 メニュー：${menuText}\n\nご確認のうえ、予約フォームにてご返答ください🌿`;
+    fetch(GAS_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ type: 'push_to_customer', userId: r.lineUserId, message: lineProposalMsg }),
+    }).then(() => showToast('お客様のLINEに日時提案を送信しました📤'))
+      .catch(e => console.warn('LINE提案送信失敗:', e));
+  }
 
   // タブ切り替え
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
