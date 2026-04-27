@@ -1174,7 +1174,8 @@ function getAvailableDates() {
   const days = ['日','月','火','水','木','金','土'];
   const result = [];
   const today = new Date();
-  for (let i = 0; i <= 21; i++) {
+  // ⭐ 28日後まで（カレンダー表示が4週間=28日のため）
+  for (let i = 0; i <= 28; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
     const dow = d.getDay();
