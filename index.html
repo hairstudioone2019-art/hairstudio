@@ -5,6 +5,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="app-version" content="3.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>HairStudio ONE｜予約システム</title>
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -1425,7 +1426,7 @@ function showDatePicker() {
       const full = keys.filter(k => ds[k] === 'full').length;
       const lastSync = parseInt(localStorage.getItem('hs_settings_last_fetch') || '0');
       const ago = lastSync ? Math.round((Date.now() - lastSync) / 1000) + '秒前' : '未取得';
-      dbgEl.textContent = `v2.7 | 全${keys.length}件 (青${ok}/薄青${okDim}/黄${cut}/薄黄${cutDim}/赤${full}) | 最終取得:${ago}`;
+      dbgEl.textContent = `v3.1 | 全${keys.length}件 (青${ok}/薄青${okDim}/黄${cut}/薄黄${cutDim}/赤${full}) | 最終取得:${ago}`;
     }
   }, 100);
   bub.appendChild(calWrap);
@@ -4267,45 +4268,15 @@ window.onload = () => {
     }
   })();
 
-  // 会話履歴の復元
-  const history = JSON.parse(localStorage.getItem('hs_chat_history') || '[]');
-  if (history.length > 0) {
-    // 前回の会話を復元表示
-    history.forEach(h => {
-      const el = document.createElement('div');
-      el.className = `msg ${h.role}`;
-      const av = document.createElement('div');
-      av.className = `av ${h.role}`;
-      if (h.role === 'ai') {
-        av.innerHTML = '<span style="font-size:10px;font-weight:bold;color:var(--accent)">ONE</span>';
-      } else {
-        av.innerHTML = `<svg viewBox="0 0 32 32" width="22" height="22" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="10" r="6" fill="var(--accent)"/><path d="M4 28c0-6.627 5.373-12 12-12s12 5.373 12 12" fill="var(--accent)"/></svg>`;
-      }
-      const bub = document.createElement('div');
-      bub.className = 'bubble';
-      bub.textContent = h.text;
-      el.appendChild(av); el.appendChild(bub);
-      chat.appendChild(el);
-    });
-    chat.scrollTop = chat.scrollHeight;
-    // 続きから再開
+  // ⭐ v3.1: リロード時は毎回履歴をクリアして最初から開始
+  localStorage.removeItem('hs_chat_history');
+  setTimeout(() => {
     step = 'type';
-    setTimeout(() => {
-      msg('ai', 'おかえりなさい😊\n前回の続きです。ご予約はこちらからどうぞ。', [
-        { label: '予約する', value: '新規' },
-        { label: '最初からやり直す', value: 'restart' }
-      ]);
-    }, 300);
-  } else {
-    // 初回
-    setTimeout(() => {
-      step = 'type';
-      msg('ai', 'HairStudio ONEへようこそ。\nAI予約アシスタントが担当いたします。\n\n本日はご新規様ですか？', [
-        { label: '新規', value: '新規' },
-        { label: 'ご来店歴のあるお客様', value: '常連' }
-      ]);
-    }, 500);
-  }
+    msg('ai', 'HairStudio ONEへようこそ。\nAI予約アシスタントが担当いたします。\n\n本日はご新規様ですか？', [
+      { label: '新規', value: '新規' },
+      { label: 'ご来店歴のあるお客様', value: '常連' }
+    ]);
+  }, 500);
 };
 </script>
 <!-- LINEメッセージ送信モーダル -->
