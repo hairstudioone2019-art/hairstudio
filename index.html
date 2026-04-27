@@ -113,10 +113,11 @@ body::before {
 /* ===== CUSTOMER PAGE ===== */
 #customer-page {
   display:none;
+  flex-direction:column;
+  height:100vh;
   padding-top:58px;
-  min-height:100vh;
 }
-#customer-page.active { display:block; }
+#customer-page.active { display:flex; }
 
 .chat-area {
   flex:1;
