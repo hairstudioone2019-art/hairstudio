@@ -4366,9 +4366,8 @@ window.onload = () => {
     // 続きから再開
     step = 'type';
     setTimeout(() => {
-      msg('ai', 'おかえりなさい😊\n前回の続きです。ご予約はこちらからどうぞ。', [
-        { label: '予約する', value: '新規' },
-        { label: '最初からやり直す', value: 'restart' }
+      msg('ai', 'おかえりなさい😊\n予約を続けますか？', [
+        { label: '予約に進む', value: 'restart' }
       ]);
     }, 300);
   } else {
