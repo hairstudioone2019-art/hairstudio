@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<!-- HairStudio ONE v2.5 - 2026/04/26 -->
+<!-- HairStudio ONE v3.0 - 2026/04/27
+     変更: 下部入力欄・送信ボタン廃止 / 名前入力をインラインテキストボックスに変更 / メッセージ予約タブ廃止・LINE誘導方式に変更 -->
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -466,16 +467,6 @@ body::before {
 <!-- ===== お客様ページ ===== -->
 <div id="customer-page" class="page active">
   <div class="chat-area" id="chat"></div>
-  <div class="input-bar">
-    <div class="input-wrap">
-      <textarea id="u-input" placeholder="メッセージを入力…" rows="1"></textarea>
-      <button id="send-btn" onclick="send()">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-        </svg>
-      </button>
-    </div>
-  </div>
 </div>
 
 <!-- ===== 管理ページ ===== -->
@@ -693,7 +684,8 @@ let selectedDates = [];   // 3日選択
 let stepHistory = [];     // 戻る用履歴
 
 // ===== 使い方案内ボックス =====
-function showUsageGuide(isNewCustomer) {
+// ===== 名前のインライン入力ボックス表示 =====
+function showNameInput(isNewCustomer) {
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
   const av = document.createElement('div');
@@ -701,106 +693,45 @@ function showUsageGuide(isNewCustomer) {
   const bub = document.createElement('div');
   bub.className = 'bubble';
 
-  bub.innerHTML = `<div style="font-size:13px;line-height:1.7;margin-bottom:8px;">ご予約方法をお選びください。${isNewCustomer ? '<br><span style="font-size:11px;color:#8b5e30;">※ 新規でパーマ・毛染めご希望の方は予約フォームからお願いします。</span>' : ''}</div>`;
+  const label = isNewCustomer
+    ? 'はじめまして！\nまず、お名前をフルネームでお教えください。'
+    : 'いつもありがとうございます！\nお名前をお教えください。';
+  bub.innerHTML = '<div style="font-size:13px;line-height:1.7;margin-bottom:10px;white-space:pre-wrap;">' + label + '</div>';
 
-  const btnWrap = document.createElement('div');
-  btnWrap.className = 'choices';
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.placeholder = '例）山田 花子';
+  inp.style.cssText = 'width:100%;border:1.5px solid rgba(139,111,71,0.3);border-radius:10px;padding:11px 14px;font-size:16px;font-family:\'DM Sans\',sans-serif;outline:none;color:var(--ink);background:white;';
 
-  const formBtn = document.createElement('button');
-  formBtn.className = 'c-btn';
-  formBtn.textContent = '📋 予約フォーム';
-  formBtn.onclick = () => {
-    btnWrap.querySelectorAll('button').forEach(b => b.disabled = true);
-    userMsg('予約フォーム');
-    step = 'date';
-    setTimeout(() => {
-      const greeting = isNewCustomer
-        ? `${bk.name}様、はじめまして！\nまずご希望の日程を確認しましょう。`
-        : `${bk.name}様、いつもありがとうございます！\nまずご希望の日程を確認しましょう。`;
-      msg('ai', greeting);
-      setTimeout(() => showDatePicker(), 400);
-    }, 300);
-  };
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'c-btn';
+  confirmBtn.style.cssText = 'margin-top:10px;width:100%;padding:11px;background:var(--accent);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;';
+  confirmBtn.textContent = '次へ →';
 
-  const msgBtn = document.createElement('button');
-  msgBtn.className = 'c-btn';
-  msgBtn.textContent = '💬 メッセージで予約';
-  msgBtn.onclick = () => {
-    btnWrap.querySelectorAll('button').forEach(b => b.disabled = true);
-    userMsg('メッセージで予約');
-    step = 'direct_msg';
-    setTimeout(() => showDirectMsgInput(), 300);
-  };
-
-  btnWrap.appendChild(formBtn);
-  btnWrap.appendChild(msgBtn);
-  bub.appendChild(btnWrap);
-  wrap.appendChild(av); wrap.appendChild(bub);
-  chat.appendChild(wrap);
-  chat.scrollTop = chat.scrollHeight;
-}
-
-function showDirectMsgInput() {
-  const wrap = document.createElement('div');
-  wrap.className = 'msg ai';
-  const av = document.createElement('div');
-  av.className = 'av ai'; av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
-  const bub = document.createElement('div');
-  bub.className = 'bubble';
-  bub.textContent = 'ご希望の日時・メニューをご記入ください。\n確認後にご連絡いたします。';
-
-  const textarea = document.createElement('textarea');
-  textarea.placeholder = '例）4月20日 午後、5月1日 9時　カット';
-  textarea.rows = 3;
-  textarea.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:9px 12px;font-size:16px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);resize:none;line-height:1.6;margin-top:10px;';
-
-  const sendBtn = document.createElement('button');
-  sendBtn.className = 'c-btn';
-  sendBtn.style.cssText = 'margin-top:8px;width:100%;padding:10px;background:rgba(139,111,71,0.12);color:var(--accent);border:1.5px solid rgba(139,111,71,0.4);border-radius:10px;font-size:13px;cursor:pointer;';
-  sendBtn.textContent = '✔ 送信する';
-  sendBtn.onclick = () => {
-    const val = textarea.value.trim();
+  const doConfirm = () => {
+    const val = inp.value.trim();
     if (!val) {
-      textarea.style.borderColor = 'var(--danger)';
-      setTimeout(() => textarea.style.borderColor = 'rgba(139,111,71,0.3)', 1500);
+      inp.style.borderColor = 'var(--danger)';
+      setTimeout(() => inp.style.borderColor = 'rgba(139,111,71,0.3)', 1500);
       return;
     }
-    textarea.disabled = true;
-    sendBtn.disabled = true;
-    userMsg(val);
-    // 予約申請として保存
-    const req = {
-      id: Date.now(),
-      name: bk.name || 'メッセージ予約',
-      lineId: '',
-      isNew,
-      status: 'pending',
-      isDirect: true,
-      cutMenu: 'メッセージ予約',
-      options: [],
-      duration: 60,
-      timePref: val,
-      datesStr: val,
-      notes: '',
-      createdAt: new Date().toLocaleString('ja-JP'),
-      aiNote: `メッセージでの予約申請`
-    };
-    requests.push(req);
-    localStorage.setItem('hs_requests', JSON.stringify(requests));
-    updateBadge();
-    setTimeout(() => {
-      msg('ai', 'ありがとうございます！\nご予約内容を確認後、ご連絡いたします。\nしばらくお待ちください😊');
-      step = 'done';
-    }, 400);
+    inp.disabled = true;
+    confirmBtn.disabled = true;
+    confirmBtn.style.opacity = '0.5';
+    send(val);
   };
 
-  bub.appendChild(textarea);
-  bub.appendChild(sendBtn);
+  confirmBtn.onclick = doConfirm;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doConfirm(); } });
+
+  bub.appendChild(inp);
+  bub.appendChild(confirmBtn);
   wrap.appendChild(av); wrap.appendChild(bub);
   chat.appendChild(wrap);
   chat.scrollTop = chat.scrollHeight;
-  setTimeout(() => textarea.focus(), 300);
+  setTimeout(() => inp.focus(), 300);
 }
+
 
 // ===== カットメニュー選択（プルダウン付き）=====
 function showCutMenuPicker(text) {
@@ -1451,13 +1382,15 @@ function showDatePicker() {
   const backBtn = document.createElement('button');
   backBtn.className = 'c-btn';
   backBtn.style.cssText = 'margin-top:6px;width:100%;font-size:11px;color:var(--muted);border-color:rgba(155,142,130,0.4);';
-  backBtn.textContent = '← 予約方法の選択に戻る';
+  backBtn.textContent = '← 日程選択に戻る';
   backBtn.onclick = () => {
     allChips.forEach(c => { c.onclick = null; c.style.pointerEvents='none'; });
     confirmBtn.disabled = true; backBtn.disabled = true;
     userMsg('← 戻る');
     setTimeout(() => {
-      showUsageGuide(isNew);
+      step = 'date';
+      msg('ai', 'もう一度日程をお選びください。');
+      setTimeout(() => showDatePicker(), 400);
     }, 200);
   };
 
@@ -2459,13 +2392,9 @@ async function processInput(input) {
 
   if (step === 'type') {
     isNew = input === '新規';
-    // まず名前を聞く
+    // 名前をインライン入力ボックスで聞く
     step = 'name';
-    setTimeout(() => {
-      msg('ai', isNew
-        ? 'はじめまして！まず、お名前をフルネームでお教えください。'
-        : 'いつもありがとうございます！お名前をお教えください。');
-    }, 300);
+    setTimeout(() => showNameInput(isNew), 300);
 
   } else if (step === 'name') {
     bk.name = input;
@@ -2475,8 +2404,14 @@ async function processInput(input) {
     } else {
       bk.lineId = '';
     }
-    // 名前確認後に予約方法を選択
-    setTimeout(() => showUsageGuide(isNew), 300);
+    // 名前確認後に予約フォームへ直接進む
+    setTimeout(() => {
+      const greeting = isNew
+        ? bk.name + '様、はじめまして！まずご希望の日程を確認しましょう。'
+        : bk.name + '様、いつもありがとうございます！まずご希望の日程を確認しましょう。';
+      msg('ai', greeting);
+      setTimeout(() => showDatePicker(), 400);
+    }, 300);
 
   } else if (step === 'lineId') {
     bk.lineId = input === 'なし' ? '' : input;
@@ -2724,24 +2659,12 @@ async function processInput(input) {
   }
 }
 
-function send() {
-  const v = document.getElementById('u-input').value.trim();
+function send(directVal) {
+  const v = (directVal || '').trim();
   if (!v) return;
-  document.getElementById('u-input').value = '';
-  document.getElementById('u-input').style.height = 'auto';
   processInput(v);
   userMsg(v);
 }
-
-document.getElementById('u-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
-});
-document.getElementById('u-input').addEventListener('compositionstart', () => { window._composing = true; });
-document.getElementById('u-input').addEventListener('compositionend', () => { window._composing = false; });
-document.getElementById('u-input').addEventListener('input', function() {
-  this.style.height = 'auto';
-  this.style.height = Math.min(this.scrollHeight,110)+'px';
-});
 
 // ===== 管理画面 =====
 async function renderAdmin() {
