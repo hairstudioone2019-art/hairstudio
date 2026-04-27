@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<!-- HairStudio ONE v3.0 - 2026/04/27
-     変更: 下部入力欄・送信ボタン廃止 / 名前入力をインラインテキストボックスに変更 / メッセージ予約タブ廃止・LINE誘導方式に変更 -->
+<!-- HairStudio ONE v3.1 - 2026/04/27
+     v3.0: 下部入力欄・送信ボタン廃止 / 名前入力をインラインテキストボックスに変更 / メッセージ予約タブ廃止・LINE誘導方式に変更
+     v3.1: 常連のデザインパーマ・おしゃれ染め・インナーカラーのカウンセリングを廃止 -->
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -2478,36 +2479,26 @@ async function processInput(input) {
     // デザインパーマ → 新規はカウンセリングのみ、常連はテキスト入力
     if (input === 'デザインパーマ') {
       if (isNew) {
-        // 新規：テキストなし、即カウンセリングへ
+        // 新規：即カウンセリングへ
         setTimeout(() => showPermCounseling(), 400);
       } else {
-        // 常連：テキスト入力 → 次へ
-        showOtherInput('permDesign', 'デザインパーマのご希望スタイルをご記入ください。\n（例：スパイラルパーマ、ニュアンスパーマ など）', 'パーマ種類に戻る', () => {
-          step = 'permType';
-          msg('ai', 'パーマの種類をお選びください。', [
-            'ノーマルパーマ',
-            'デザインパーマ',
-            'その他',
-          ]);
-        }, (val) => {
-          bk.permDetail = val;
-          if (selectedOptions.includes('カラー')) {
-            step = 'colorType';
-            msgWithBack('カラーの種類をお選びください。', [
-              'おしゃれ染め', '白髪染め',
-              'デザインカラー（インナーカラー・部分カラー）', 'その他',
-            ], 'permType', 'パーマ種類に戻る', () => {
-              step = 'permType';
-              msg('ai', 'パーマの種類をお選びください。', [
-                'ノーマルパーマ',
-                'デザインパーマ',
-                'その他',
-              ]);
-            });
-          } else {
-            goToHairState();
-          }
-        });
+        // 常連：カウンセリングなし、そのまま次へ
+        if (selectedOptions.includes('カラー')) {
+          step = 'colorType';
+          msgWithBack('カラーの種類をお選びください。', [
+            'おしゃれ染め', '白髪染め',
+            'デザインカラー（インナーカラー・部分カラー）', 'その他',
+          ], 'permType', 'パーマ種類に戻る', () => {
+            step = 'permType';
+            msg('ai', 'パーマの種類をお選びください。', [
+              'ノーマルパーマ',
+              'デザインパーマ',
+              'その他',
+            ]);
+          });
+        } else {
+          goToHairState();
+        }
       }
     // その他 → テキスト入力
     } else if (input === 'その他') {
@@ -2568,42 +2559,22 @@ async function processInput(input) {
       bk.duration = calcDuration();
       showNotesFinal();
 
-    // おしゃれ染め → 新規：カウンセリング、常連：テキスト入力
+    // おしゃれ染め → 新規：カウンセリング、常連：スキップして次へ
     } else if (input === 'おしゃれ染め') {
       bk.duration = calcDuration();
       if (isNew) {
         showColorCounseling('おしゃれ');
       } else {
-        showOtherInput('colorOshare', 'ご希望のカラーイメージをご記入ください。\n（例：明るめのブラウン、艶感重視 など）', 'カラー種類に戻る', () => {
-          step = 'colorType';
-          msg('ai', 'カラーの種類をお選びください。', [
-            'おしゃれ染め', '白髪染め',
-            'デザインカラー（インナーカラー・部分カラー）', 'その他',
-          ]);
-        }, (val) => {
-          bk.colorDetail = val;
-          bk.duration = calcDuration();
-          showNotesFinal();
-        });
+        showNotesFinal();
       }
 
-    // デザインカラー → 新規：カウンセリング、常連：テキスト入力
+    // デザインカラー → 新規：カウンセリング、常連：スキップして次へ
     } else if (input === 'デザインカラー（インナーカラー・部分カラー）') {
       bk.duration = calcDuration();
       if (isNew) {
         showColorCounseling('デザイン');
       } else {
-        showOtherInput('colorDesign', 'ご希望のデザインカラーをご記入ください。\n（例：インナーカラー、毛先グラデーション など）', 'カラー種類に戻る', () => {
-          step = 'colorType';
-          msg('ai', 'カラーの種類をお選びください。', [
-            'おしゃれ染め', '白髪染め',
-            'デザインカラー（インナーカラー・部分カラー）', 'その他',
-          ]);
-        }, (val) => {
-          bk.colorDetail = val;
-          bk.duration = calcDuration();
-          showNotesFinal();
-        });
+        showNotesFinal();
       }
 
     // その他 → 新規・常連ともテキスト入力
