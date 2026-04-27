@@ -1,12 +1,10 @@
 <!DOCTYPE html>
-<!-- HairStudio ONE v2.7 - 2026/04/27
+<!-- HairStudio ONE v2.8 - 2026/04/27
      変更点:
-       - Admin.gs: doPost ハンドラを新規追加（saveBooking / updateStatus / deleteBooking / notify_owner / push_to_customer）
-       - Admin.gs: doGet に ?action=getBookings を追加（syncBookingsFromSheet との連携を正式化）
-       - Admin.gs: pushLine にエラーログ（HTTP ステータス確認）を追加
-       - Admin.gs: saveBookingToSheet 関数を追加（index.html からの予約保存を正式対応）
-       - AdminPage.html: バージョン表示を v2.7 に更新
-       - index.html: バージョン表示を v2.7 に更新
+       - 下部の入力バー（textarea + 送信ボタン）を削除
+       - 名前入力をチャット内テキストボックスUIに変更（showNameInput関数を追加）
+       - send() / u-input イベントリスナーを削除
+       - チャットエリアのレイアウト調整
 -->
 <html lang="ja">
 <head>
@@ -115,16 +113,15 @@ body::before {
 /* ===== CUSTOMER PAGE ===== */
 #customer-page {
   display:none;
-  flex-direction:column;
-  height:100vh;
   padding-top:58px;
+  min-height:100vh;
 }
-#customer-page.active { display:flex; }
+#customer-page.active { display:block; }
 
 .chat-area {
   flex:1;
   overflow-y:auto;
-  padding:24px 16px 16px;
+  padding:24px 16px 40px;
   display:flex;
   flex-direction:column;
   gap:14px;
@@ -186,30 +183,6 @@ body::before {
   box-shadow:0 4px 12px rgba(139,111,71,0.25);
 }
 .c-btn:disabled { opacity:.4;cursor:default; }
-
-/* 入力エリア */
-.input-bar {
-  padding:12px 16px 18px;
-  background:rgba(246,241,233,0.97);
-  backdrop-filter:blur(10px);
-  border-top:1px solid rgba(139,111,71,0.12);
-}
-.input-wrap { display:flex;gap:10px;align-items:flex-end;max-width:600px;margin:0 auto; }
-#u-input {
-  flex:1;border:1.5px solid rgba(139,111,71,0.22);border-radius:22px;
-  padding:11px 16px;font-size:16px;font-family:'DM Sans',sans-serif;
-  background:white;color:var(--ink);outline:none;resize:none;
-  min-height:44px;max-height:110px;line-height:1.5;transition:border-color .2s;
-}
-#u-input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(139,111,71,0.09); }
-#u-input::placeholder { color:var(--muted);font-weight:300; }
-#send-btn {
-  width:44px;height:44px;border-radius:50%;border:1.5px solid rgba(139,111,71,0.4);
-  background:white;color:var(--accent);cursor:pointer;
-  display:flex;align-items:center;justify-content:center;flex-shrink:0;
-  transition:all .2s;
-}
-#send-btn:hover { background:var(--accent);color:white;transform:scale(1.05); }
 
 /* タイピング */
 .typing { display:flex;gap:10px;animation:fadeUp .3s ease; }
@@ -474,16 +447,6 @@ body::before {
 <!-- ===== お客様ページ ===== -->
 <div id="customer-page" class="page active">
   <div class="chat-area" id="chat"></div>
-  <div class="input-bar">
-    <div class="input-wrap">
-      <textarea id="u-input" placeholder="メッセージを入力…" rows="1"></textarea>
-      <button id="send-btn" onclick="send()">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-        </svg>
-      </button>
-    </div>
-  </div>
 </div>
 
 <!-- ===== 管理ページ ===== -->
@@ -699,6 +662,56 @@ let isNew = false;
 let selectedOptions = []; // 複数選択オプション
 let selectedDates = [];   // 3日選択
 let stepHistory = [];     // 戻る用履歴
+
+// ===== 名前入力UI（チャット内テキストボックス） =====
+function showNameInput(isNewCustomer) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ai';
+  const av = document.createElement('div');
+  av.className = 'av ai';
+  av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
+  const bub = document.createElement('div');
+  bub.className = 'bubble';
+  bub.textContent = isNewCustomer
+    ? 'はじめまして！\nまず、お名前をフルネームでお教えください。'
+    : 'いつもありがとうございます！\nお名前をお教えください。';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = '例）山田 花子';
+  input.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:10px 14px;font-size:16px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);margin-top:10px;box-sizing:border-box;';
+
+  const doneBtn = document.createElement('button');
+  doneBtn.className = 'c-btn';
+  doneBtn.style.cssText = 'margin-top:8px;width:100%;padding:10px;background:rgba(139,111,71,0.12);color:var(--accent);border:1.5px solid rgba(139,111,71,0.4);border-radius:10px;font-size:13px;cursor:pointer;font-family:"DM Sans",sans-serif;';
+  doneBtn.textContent = '→ 次へ';
+
+  const submit = () => {
+    const val = input.value.trim();
+    if (!val) {
+      input.style.borderColor = 'var(--danger)';
+      setTimeout(() => input.style.borderColor = 'rgba(139,111,71,0.3)', 1500);
+      return;
+    }
+    input.disabled = true;
+    doneBtn.disabled = true;
+    userMsg(val);
+    setTimeout(() => processInput(val), 300);
+  };
+
+  doneBtn.onclick = submit;
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); submit(); }
+  });
+
+  bub.appendChild(input);
+  bub.appendChild(doneBtn);
+  wrap.appendChild(av);
+  wrap.appendChild(bub);
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+  setTimeout(() => input.focus(), 300);
+}
 
 // ===== 使い方案内ボックス =====
 function showUsageGuide(isNewCustomer) {
@@ -2467,13 +2480,9 @@ async function processInput(input) {
 
   if (step === 'type') {
     isNew = input === '新規';
-    // まず名前を聞く
+    // まず名前を聞く（チャット内テキスト入力UI）
     step = 'name';
-    setTimeout(() => {
-      msg('ai', isNew
-        ? 'はじめまして！まず、お名前をフルネームでお教えください。'
-        : 'いつもありがとうございます！お名前をお教えください。');
-    }, 300);
+    setTimeout(() => showNameInput(isNew), 300);
 
   } else if (step === 'name') {
     bk.name = input;
@@ -2731,25 +2740,6 @@ async function processInput(input) {
     }
   }
 }
-
-function send() {
-  const v = document.getElementById('u-input').value.trim();
-  if (!v) return;
-  document.getElementById('u-input').value = '';
-  document.getElementById('u-input').style.height = 'auto';
-  processInput(v);
-  userMsg(v);
-}
-
-document.getElementById('u-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
-});
-document.getElementById('u-input').addEventListener('compositionstart', () => { window._composing = true; });
-document.getElementById('u-input').addEventListener('compositionend', () => { window._composing = false; });
-document.getElementById('u-input').addEventListener('input', function() {
-  this.style.height = 'auto';
-  this.style.height = Math.min(this.scrollHeight,110)+'px';
-});
 
 // ===== 管理画面 =====
 async function renderAdmin() {
