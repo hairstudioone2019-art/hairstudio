@@ -455,7 +455,7 @@ body::before {
 <!-- タブバー -->
 <div class="tab-bar">
   <div class="brand">
-    <img src="https://hairstudioone2019-art.github.io/hairstudio/logo.jpg" alt="Hair Studio ONE" style="height:38px;width:auto;object-fit:contain;">
+    <img src="logo.jpg" alt="Hair Studio ONE" style="height:38px;width:auto;object-fit:contain;">
   </div>
   <button class="tab-btn active" onclick="showTab('customer')" onlongpress="showTab('admin')" id="customer-tab">予約フォーム</button>
   <button class="tab-btn" onclick="showTab('admin')" id="admin-tab" style="display:none">
@@ -697,7 +697,7 @@ function showUsageGuide(isNewCustomer) {
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
   const av = document.createElement('div');
-  av.className = 'av ai'; av.innerHTML = '<img src="https://hairstudioone2019-art.github.io/hairstudio/logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
+  av.className = 'av ai'; av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
   const bub = document.createElement('div');
   bub.className = 'bubble';
 
@@ -744,7 +744,7 @@ function showDirectMsgInput() {
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
   const av = document.createElement('div');
-  av.className = 'av ai'; av.innerHTML = '<img src="https://hairstudioone2019-art.github.io/hairstudio/logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
+  av.className = 'av ai'; av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
   const bub = document.createElement('div');
   bub.className = 'bubble';
   bub.textContent = 'ご希望の日時・メニューをご記入ください。\n確認後にご連絡いたします。';
@@ -808,7 +808,7 @@ function showCutMenuPicker(text) {
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
   const av = document.createElement('div');
-  av.className = 'av ai'; av.innerHTML = '<img src="https://hairstudioone2019-art.github.io/hairstudio/logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
+  av.className = 'av ai'; av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
   const bub = document.createElement('div');
   bub.className = 'bubble';
   bub.textContent = text;
@@ -941,7 +941,7 @@ function showNotesFinal() {
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
   const av = document.createElement('div');
-  av.className = 'av ai'; av.innerHTML = '<img src="https://hairstudioone2019-art.github.io/hairstudio/logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
+  av.className = 'av ai'; av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
   const bub = document.createElement('div');
   bub.className = 'bubble';
   bub.textContent = '最後に、何かご要望・備考はありますか？（任意）';
@@ -992,7 +992,7 @@ function showOtherInput(stepName, placeholder, backLabel, backFn, onSubmit) {
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
   const av = document.createElement('div');
-  av.className = 'av ai'; av.innerHTML = '<img src="https://hairstudioone2019-art.github.io/hairstudio/logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
+  av.className = 'av ai'; av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
   const bub = document.createElement('div');
   bub.className = 'bubble';
   bub.textContent = placeholder;
@@ -1064,7 +1064,7 @@ function msg(role, text, choices, card) {
   const av = document.createElement('div');
   av.className = `av ${role}`;
   if (role === 'ai') {
-    av.innerHTML = '<img src="https://hairstudioone2019-art.github.io/hairstudio/logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
+    av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
   } else {
     av.innerHTML = `<svg viewBox="0 0 32 32" width="22" height="22" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="10" r="6" fill="var(--accent)"/><path d="M4 28c0-6.627 5.373-12 12-12s12 5.373 12 12" fill="var(--accent)"/></svg>`;
   }
@@ -1255,7 +1255,7 @@ function showDatePicker() {
   wrap.className = 'msg ai';
   wrap.id = 'date-picker-wrap';
   const av = document.createElement('div');
-  av.className = 'av ai'; av.innerHTML = '<img src="https://hairstudioone2019-art.github.io/hairstudio/logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
+  av.className = 'av ai'; av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
   const bub = document.createElement('div');
   bub.className = 'bubble';
   bub.textContent = 'ご希望の日を最大3日お選びください。\n（優先順に選んでいただくと助かります）';
@@ -1523,7 +1523,7 @@ function askTimeForDate(idx) {
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
   const av = document.createElement('div');
-  av.className = 'av ai'; av.innerHTML = '<img src="https://hairstudioone2019-art.github.io/hairstudio/logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
+  av.className = 'av ai'; av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
   const bub = document.createElement('div');
   bub.className = 'bubble';
   bub.textContent = `${ordinal}（${dateLabel}）の\nご希望の時間帯をお選びください。\n🔵午前 9:00〜12:00　🔵午後 13:00〜18:00`;
@@ -1804,7 +1804,7 @@ function showOptionPicker() {
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
   const av = document.createElement('div');
-  av.className = 'av ai'; av.innerHTML = '<img src="https://hairstudioone2019-art.github.io/hairstudio/logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
+  av.className = 'av ai'; av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
   const bub = document.createElement('div');
   bub.className = 'bubble';
   bub.textContent = 'オプションメニューをお選びください。\n（複数選択できます）';
@@ -1950,7 +1950,7 @@ function showPermCounseling() {
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
   const av = document.createElement('div');
-  av.className = 'av ai'; av.innerHTML = '<img src="https://hairstudioone2019-art.github.io/hairstudio/logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
+  av.className = 'av ai'; av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
   const bub = document.createElement('div');
   bub.className = 'bubble';
   bub.textContent = 'デザインパーマについて教えてください。';
@@ -2056,7 +2056,7 @@ function showColorCounseling(type) {
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
   const av = document.createElement('div');
-  av.className = 'av ai'; av.innerHTML = '<img src="https://hairstudioone2019-art.github.io/hairstudio/logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
+  av.className = 'av ai'; av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
   const bub = document.createElement('div');
   bub.className = 'bubble';
   bub.textContent = isOshare ? 'おしゃれ染めについて教えてください。' : isShiragaSome ? '白髪染めについて教えてください。' : 'デザインカラーについて教えてください。';
@@ -2282,7 +2282,7 @@ function showKyokumoCounseling() {
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
   const av = document.createElement('div');
-  av.className = 'av ai'; av.innerHTML = '<img src="https://hairstudioone2019-art.github.io/hairstudio/logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
+  av.className = 'av ai'; av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
   const bub = document.createElement('div');
   bub.className = 'bubble';
   bub.textContent = '縮毛矯正について教えてください。';
@@ -3667,7 +3667,7 @@ function showReplyMessage(type, r) {
   wrap.className = 'msg ai';
   wrap.id = existingId;
   const av = document.createElement('div');
-  av.className = 'av ai'; av.innerHTML = '<img src="https://hairstudioone2019-art.github.io/hairstudio/logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
+  av.className = 'av ai'; av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
   const bub = document.createElement('div');
   bub.className = 'bubble';
 
@@ -4326,15 +4326,22 @@ function showToast(text) {
 window.onload = () => {
   updateBadge();
 
-  // ⭐ 起動直後にスプレッドシートから最新の設定を取得（休業日・午前午後の手動設定）
-  //    awaitしないので画面表示はブロックしない（取得後に自動でカレンダー再描画）
-  syncSettingsFromSheet(true).then(() => {
-    // 設定取得後にカレンダーを再描画して反映
-    if (typeof refreshCustomerCalendar === 'function') refreshCustomerCalendar();
+  // ⭐ 起動時に2段階で最新データを取得：
+  //   1) シートから手動設定（休業日など）を取得
+  //   2) Googleカレンダーから空き状況を取得（黄色判定など）
+  //   3) 両方終わったらカレンダー再描画
+  (async () => {
+    try {
+      await syncSettingsFromSheet(true);
+      await syncCalendarStatus(true);
+    } catch(e) { console.log('初期同期エラー:', e); }
+    if (typeof refreshCustomerCalendar === 'function') {
+      try { refreshCustomerCalendar(); } catch(e) {}
+    }
     if (typeof renderAdminCalendar === 'function') {
       try { renderAdminCalendar(); } catch(e) {}
     }
-  });
+  })();
 
   // 会話履歴の復元
   const history = JSON.parse(localStorage.getItem('hs_chat_history') || '[]');
