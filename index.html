@@ -1290,6 +1290,7 @@ function showDatePicker() {
     <div style="padding:6px 8px;background:rgba(139,111,71,0.06);border-radius:8px;font-size:11px;color:var(--muted);line-height:1.8;">
       📅 日付の<strong style="color:var(--ink);">上半分＝午前</strong>（9:00〜12:00）　<strong style="color:var(--ink);">下半分＝午後</strong>（13:00〜18:00）
     </div>
+    <div id="hs-debug-info" style="margin-top:4px;padding:3px 6px;font-size:9px;color:#aaa;text-align:right;"></div>
   `;
 
   const calWrap = document.createElement('div');
@@ -1475,6 +1476,23 @@ function showDatePicker() {
   calWrap.appendChild(confirmBtn);
   calWrap.appendChild(backBtn);
   bub.appendChild(legend);
+
+  // ⭐ v2.7 デバッグ表示：dayStatusに薄色が含まれているか可視化
+  setTimeout(() => {
+    const dbgEl = document.getElementById('hs-debug-info');
+    if (dbgEl) {
+      const ds = JSON.parse(localStorage.getItem('hs_settings') || '{}').dayStatus || {};
+      const keys = Object.keys(ds);
+      const okDim = keys.filter(k => ds[k] === 'ok-dim').length;
+      const cutDim = keys.filter(k => ds[k] === 'cut-dim').length;
+      const cut = keys.filter(k => ds[k] === 'cut').length;
+      const ok = keys.filter(k => ds[k] === 'ok').length;
+      const full = keys.filter(k => ds[k] === 'full').length;
+      const lastSync = parseInt(localStorage.getItem('hs_settings_last_fetch') || '0');
+      const ago = lastSync ? Math.round((Date.now() - lastSync) / 1000) + '秒前' : '未取得';
+      dbgEl.textContent = `v2.7 | 全${keys.length}件 (青${ok}/薄青${okDim}/黄${cut}/薄黄${cutDim}/赤${full}) | 最終取得:${ago}`;
+    }
+  }, 100);
   bub.appendChild(calWrap);
   wrap.appendChild(av); wrap.appendChild(bub);
   // 既存のdate-picker-wrapがあれば削除してから追加
