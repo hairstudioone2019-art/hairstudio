@@ -3234,20 +3234,26 @@ function saveBookingToSpreadsheet(booking) {
 // ⭐ 管理画面で設定した内容をお客様画面に反映するための関数
 // ============================================================
 async function syncSettingsFromSheet(force = false) {
-  if (!GAS_URL || GAS_URL === 'YOUR_GAS_URL_HERE') return;
+  if (!GAS_URL || GAS_URL === 'YOUR_GAS_URL_HERE') {
+    console.log('🔴 GAS_URL未設定');
+    return;
+  }
 
   // 5分以内のキャッシュがあればスキップ（強制フラグなし時）
   if (!force) {
     const lastFetch = parseInt(localStorage.getItem('hs_settings_last_fetch') || '0');
     if (Date.now() - lastFetch < 5 * 60 * 1000) {
-      console.log('設定取得スキップ（キャッシュ有効）');
+      console.log('⏭️ 設定取得スキップ（キャッシュ有効）');
       return;
     }
   }
 
+  console.log('🔵 syncSettingsFromSheet 開始:', GAS_URL + '?action=getSettings');
   try {
     const res = await fetch(`${GAS_URL}?action=getSettings`);
+    console.log('🔵 レスポンスstatus:', res.status, res.ok);
     const json = await res.json();
+    console.log('🔵 受信データ:', JSON.stringify(json).substring(0, 500));
     if (json.success && json.settings) {
       // 既存のlocalStorageを土台に、シートの内容で上書き
       const local = JSON.parse(localStorage.getItem('hs_settings') || '{"maxHours":8,"closedDates":[],"dayStatus":{}}');
@@ -3258,10 +3264,15 @@ async function syncSettingsFromSheet(force = false) {
       settings = merged;
       localStorage.setItem('hs_settings', JSON.stringify(settings));
       localStorage.setItem('hs_settings_last_fetch', Date.now().toString());
-      console.log('設定同期完了:', Object.keys(settings.dayStatus||{}).length + '件のday設定 / ' + (settings.closedDates||[]).length + '件の休業日');
+      console.log('✅ 設定同期完了:');
+      console.log('   - dayStatus件数:', Object.keys(settings.dayStatus||{}).length);
+      console.log('   - 休業日件数:', (settings.closedDates||[]).length);
+      console.log('   - dayStatusサンプル:', JSON.stringify(settings.dayStatus).substring(0, 300));
+    } else {
+      console.log('🔴 設定取得失敗:', json);
     }
   } catch (e) {
-    console.log('設定同期エラー（無視）:', e);
+    console.log('🔴 設定同期エラー:', e.message);
   }
 }
 
