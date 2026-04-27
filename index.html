@@ -2730,20 +2730,28 @@ async function syncBookingsFromSheet() {
     const data = await res.json();
     if (!data.success || !data.bookings) return;
 
-    // スプレッドシートをマスターとして完全上書き
     const sheetBookings = data.bookings;
-
-    // localStorageにある独自データ（シートにない新規・未送信分）を保持
     const localBookings = JSON.parse(localStorage.getItem('hs_requests') || '[]');
     const sheetIds = new Set(sheetBookings.map(b => String(b.id)));
 
     // シートにないlocalのデータ（まだ送信中 or 失敗分）を残す
     const localOnly = localBookings.filter(b => !sheetIds.has(String(b.id)));
 
-    // シートのデータにlocalの詳細情報（lineUserId等）をマージ
+    // シートのデータとlocalをマージ
+    // ⭐ lineUserId はシート・local 両方から取れる方を優先
     const merged = sheetBookings.map(sb => {
       const local = localBookings.find(lb => String(lb.id) === String(sb.id));
-      return local ? Object.assign({}, local, { status: sb.status }) : sb;
+      if (local) {
+        // local を土台にシートのステータスで更新、lineUserId はどちらかある方を使う
+        return Object.assign({}, local, {
+          status: sb.status,
+          lineUserId: local.lineUserId || sb.lineUserId || '',
+          lineId: local.lineId || sb.lineId || '',
+        });
+      } else {
+        // local にない場合はシートのデータをそのまま使う（lineUserId含む）
+        return sb;
+      }
     });
 
     const final = [...merged, ...localOnly];
@@ -3179,8 +3187,8 @@ function sendLineNotify(type, data) {
   }
   fetch(GAS_URL, {
     method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'application/json' },
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ type: 'notify_owner', message, data }),
   }).catch(e => console.log('LINE通知エラー:', e));
 }
@@ -3190,8 +3198,8 @@ function updateSheetStatus(bookingId, status) {
   if (!GAS_URL) return;
   fetch(GAS_URL, {
     method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'application/json' },
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ action: 'updateStatus', bookingId, status }),
   }).catch(e => console.log('ステータス更新エラー:', e));
 }
@@ -3200,8 +3208,8 @@ function deleteBookingFromSheet(bookingId) {
   if (!GAS_URL) return;
   fetch(GAS_URL, {
     method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'application/json' },
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ action: 'deleteBooking', bookingId }),
   }).catch(e => console.log('シート削除エラー:', e));
 }
@@ -3211,8 +3219,8 @@ function saveBookingToSpreadsheet(booking) {
   if (!GAS_URL) return;
   fetch(GAS_URL, {
     method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'application/json' },
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ action: 'saveBooking', booking }),
   }).catch(e => console.log('スプレッドシート保存エラー:', e));
 }
@@ -3344,10 +3352,10 @@ function updateAdminCalendarLastSync() {
 
 function sendToGoogleCalendar(r) {
   if (!GAS_URL || GAS_URL === 'YOUR_GAS_URL_HERE') return;
-  // 投げっぱなし（no-corsで結果は使わないのでawait不要）
   fetch(GAS_URL, {
     method: 'POST',
-    mode: 'no-cors',
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({
       name: r.name,
       dateStr: r.selectedDate || r.timePref || r.datesStr || '',
@@ -3730,8 +3738,8 @@ function showReplyMessage(type, r) {
     // お客様のユーザーIDがある場合はGAS経由で自動送信
     fetch(GAS_URL, {
       method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ type: 'push_to_customer', userId: r.lineUserId, message: lineMsg }),
     }).then(() => showToast('LINEにメッセージを送信しました📤'))
       .catch(e => console.warn('LINE自動返信失敗:', e));
@@ -3884,8 +3892,8 @@ function showConfirmedMessage(r) {
     // ブラウザ管理画面 + lineUserId あり：GAS経由でプッシュ送信
     fetch(GAS_URL, {
       method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ type: 'push_to_customer', userId: r.lineUserId, message: msgText }),
     }).then(() => showToast('LINEにメッセージを送信しました📤'))
       .catch(e => console.warn('LINE自動返信失敗:', e));
@@ -4423,8 +4431,8 @@ function sendLineMessageFromAdmin() {
 
   fetch(GAS_URL, {
     method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'application/json' },
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ type: 'push_to_customer', userId: _currentLineUserId, message }),
   }).then(() => {
     showToast(`${_currentCustomerName}様にLINEを送信しました📤`);
