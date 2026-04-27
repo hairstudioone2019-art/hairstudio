@@ -3390,8 +3390,8 @@ function toggleMenuOther(id) {
 }
 
 function approveWithDate(id) {
-  const r = requests.find(x => x.id === id);
-  if (!r) return;
+  const r = requests.find(x => String(x.id) === String(id));
+  if (!r) { console.warn('[ERROR] approveWithDate: id not found:', id, requests.map(x=>x.id)); return; }
   const card = document.getElementById(`card-${id}`);
 
   // メニュー選択を保存（メッセージ予約はドロップダウン選択値を必ず使う）
@@ -3533,7 +3533,7 @@ function showLineConfirmModal(id, r, resolvedDate) {
 
 // 実際の承認処理（お任せの場合はお客様確認待ちステータスに）
 function _doApproveWithDate(id, r, resolvedDate) {
-  if (!r) r = requests.find(x => x.id === id);
+  if (!r) r = requests.find(x => String(x.id) === String(id));
   if (!r) return;
 
   if (resolvedDate) {
@@ -3554,7 +3554,7 @@ function _doApproveWithDate(id, r, resolvedDate) {
 
 // お客様が承諾 → 予約確定
 function confirmCustomerApproval(id) {
-  const r = requests.find(x => x.id === id);
+  const r = requests.find(x => String(x.id) === String(id));
   if (!r) return;
   // ボタンを無効化
   const btn = document.getElementById('proposal-btns-' + id);
@@ -3570,7 +3570,7 @@ function confirmCustomerApproval(id) {
 
 // お客様が別日希望 → pendingに戻す
 function requestReschedule(id) {
-  const r = requests.find(x => x.id === id);
+  const r = requests.find(x => String(x.id) === String(id));
   if (!r) return;
   // ボタンを無効化
   const btn = document.getElementById('proposal-btns-' + id);
@@ -3586,7 +3586,7 @@ function requestReschedule(id) {
 }
 
 function approve(id) {
-  const r = requests.find(x => x.id === id);
+  const r = requests.find(x => String(x.id) === String(id));
   if (!r) return;
   r.status = 'approved';
   localStorage.setItem('hs_requests', JSON.stringify(requests));
@@ -3601,7 +3601,7 @@ function approve(id) {
 }
 
 function deleteReqCard(id) {
-  const r = requests.find(x => x.id === id);
+  const r = requests.find(x => String(x.id) === String(id));
   if (!r) return;
   if (!confirm(`${r.name}様のこの予約を削除しますか？`)) return;
   requests = requests.filter(x => x.id !== id);
@@ -3614,7 +3614,7 @@ function deleteReqCard(id) {
 }
 
 function reject(id) {
-  const r = requests.find(x => x.id === id);
+  const r = requests.find(x => String(x.id) === String(id));
   if (!r) return;
   r.status = 'rejected';
   localStorage.setItem('hs_requests', JSON.stringify(requests));
@@ -3626,7 +3626,7 @@ function reject(id) {
 }
 
 function copyReplyMessage(id, status) {
-  const r = requests.find(x => x.id === id);
+  const r = requests.find(x => String(x.id) === String(id));
   if (!r) return;
 
   const rawTime = (r.timePref || r.datesStr || '').split('\n')[0];
