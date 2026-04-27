@@ -1998,11 +1998,11 @@ function showPermCounseling() {
 
   let ans = { style: '', exp: '', damage: '' };
 
-  // ① スタイルイメージ（入力式）
+  // ① スタイルイメージ（新規・常連 共通）
   const q1wrap = document.createElement('div');
   const q1label = document.createElement('div');
   q1label.style.cssText = 'font-size:12px;color:var(--muted);margin:12px 0 6px;font-weight:500;';
-  q1label.textContent = '① ご希望のスタイルイメージ';
+  q1label.textContent = isNew ? '① ご希望のスタイルイメージ' : 'ご希望のスタイルイメージ';
   const q1input = document.createElement('input');
   q1input.type = 'text';
   q1input.placeholder = '例：ゆるいウェーブ、毛先だけカール など';
@@ -2011,48 +2011,55 @@ function showPermCounseling() {
   q1wrap.appendChild(q1label);
   q1wrap.appendChild(q1input);
 
-  // ② パーマ経験（選択式）
-  const q2label = document.createElement('div');
-  q2label.style.cssText = 'font-size:12px;color:var(--muted);margin:12px 0 6px;font-weight:500;';
-  q2label.textContent = '② 過去のパーマ経験';
-  const q2choices = document.createElement('div');
-  q2choices.className = 'choices';
+  // ② パーマ経験（新規のみ）
+  let q2label, q2choices;
+  if (isNew) {
+    q2label = document.createElement('div');
+    q2label.style.cssText = 'font-size:12px;color:var(--muted);margin:12px 0 6px;font-weight:500;';
+    q2label.textContent = '② 過去のパーマ経験';
+    q2choices = document.createElement('div');
+    q2choices.className = 'choices';
+    ['パーマ経験なし','1ヶ月以内','2〜3ヶ月前','半年前','1年以上前'].forEach(v => {
+      const btn = document.createElement('button');
+      btn.className = 'c-btn';
+      btn.textContent = v;
+      btn.onclick = () => {
+        q2choices.querySelectorAll('.c-btn').forEach(b => { b.style.background=''; b.style.color=''; });
+        btn.style.background = 'var(--accent)'; btn.style.color = 'white';
+        ans.exp = v;
+      };
+      q2choices.appendChild(btn);
+    });
+  }
 
-  ['パーマ経験なし','1ヶ月以内','2〜3ヶ月前','半年前','1年以上前'].forEach(v => {
-    const btn = document.createElement('button');
-    btn.className = 'c-btn';
-    btn.textContent = v;
-    btn.onclick = () => {
-      q2choices.querySelectorAll('.c-btn').forEach(b => { b.style.background=''; b.style.color=''; });
-      btn.style.background = 'var(--accent)'; btn.style.color = 'white';
-      ans.exp = v;
-    };
-    q2choices.appendChild(btn);
-  });
-
-  // ③ 髪のダメージ状態（選択式）
-  const q3label = document.createElement('div');
-  q3label.style.cssText = 'font-size:12px;color:var(--muted);margin:12px 0 6px;font-weight:500;';
-  q3label.textContent = '③ 現在の髪のダメージ状態';
-  const q3choices = document.createElement('div');
-  q3choices.className = 'choices';
-
-  ['ダメージなし（健康な状態）','少しダメージあり','ダメージあり（パサつき・切れ毛など）','かなりダメージあり（ハイダメージ）'].forEach(v => {
-    const btn = document.createElement('button');
-    btn.className = 'c-btn';
-    btn.textContent = v;
-    btn.onclick = () => {
-      q3choices.querySelectorAll('.c-btn').forEach(b => { b.style.background=''; b.style.color=''; });
-      btn.style.background = 'var(--accent)'; btn.style.color = 'white';
-      ans.damage = v;
-    };
-    q3choices.appendChild(btn);
-  });
+  // ③ 髪のダメージ状態（新規のみ）
+  let q3label, q3choices;
+  if (isNew) {
+    q3label = document.createElement('div');
+    q3label.style.cssText = 'font-size:12px;color:var(--muted);margin:12px 0 6px;font-weight:500;';
+    q3label.textContent = '③ 現在の髪のダメージ状態';
+    q3choices = document.createElement('div');
+    q3choices.className = 'choices';
+    ['ダメージなし（健康な状態）','少しダメージあり','ダメージあり（パサつき・切れ毛など）','かなりダメージあり（ハイダメージ）'].forEach(v => {
+      const btn = document.createElement('button');
+      btn.className = 'c-btn';
+      btn.textContent = v;
+      btn.onclick = () => {
+        q3choices.querySelectorAll('.c-btn').forEach(b => { b.style.background=''; b.style.color=''; });
+        btn.style.background = 'var(--accent)'; btn.style.color = 'white';
+        ans.damage = v;
+      };
+      q3choices.appendChild(btn);
+    });
+  }
 
   // 送信ボタン
   const doneBtn = mkDoneBtn(() => {
-    if (!ans.style || !ans.exp || !ans.damage) return false;
-    bk.counseling = `スタイル：${ans.style}／パーマ経験：${ans.exp}／ダメージ：${ans.damage}`;
+    if (!ans.style) return false;
+    if (isNew && (!ans.exp || !ans.damage)) return false;
+    bk.counseling = isNew
+      ? `スタイル：${ans.style}／パーマ経験：${ans.exp}／ダメージ：${ans.damage}`
+      : `スタイル：${ans.style}`;
     userMsg(bk.counseling);
     lockWrap(wrap);
     setTimeout(() => afterCounseling(), 400);
@@ -2070,18 +2077,13 @@ function showPermCounseling() {
     setTimeout(() => {
       step = 'permType';
       msg('ai', 'パーマの種類をお選びください。', [
-        'ノーマルパーマ',
-        'デザインパーマ',
-        'その他',
+        'ノーマルパーマ', 'デザインパーマ', 'その他',
       ]);
     }, 200);
   };
 
   bub.appendChild(q1wrap);
-  bub.appendChild(q2label);
-  bub.appendChild(q2choices);
-  bub.appendChild(q3label);
-  bub.appendChild(q3choices);
+  if (isNew) { bub.appendChild(q2label); bub.appendChild(q2choices); bub.appendChild(q3label); bub.appendChild(q3choices); }
   bub.appendChild(doneBtn);
   bub.appendChild(backBtn);
   wrap.appendChild(av); wrap.appendChild(bub);
@@ -2104,96 +2106,119 @@ function showColorCounseling(type) {
 
   let ans = { q1: '', condition: '', dyeExp: '', bleach: '' };
 
-  // ① 各種：質問
+  // ① 各種：質問（新規・常連 共通）
   let q1;
   if (isOshare) {
-    const q1Items = ['明るめ（ブリーチなし）','少し明るめ','自然な明るさ','少し暗め','暗め'];
-    q1 = mkQuestion('① ご希望の明るさ', q1Items, v => { ans.q1 = v; });
+    if (isNew) {
+      // 新規：選択式
+      const q1Items = ['明るめ（ブリーチなし）','少し明るめ','自然な明るさ','少し暗め','暗め'];
+      q1 = mkQuestion(isNew ? '① ご希望の明るさ' : 'ご希望の明るさ', q1Items, v => { ans.q1 = v; });
+    } else {
+      // 常連：テキスト入力
+      const q1wrap = document.createElement('div');
+      const q1lbl = document.createElement('div');
+      q1lbl.style.cssText = 'font-size:12px;color:var(--muted);margin:12px 0 4px;font-weight:500;';
+      q1lbl.textContent = 'ご希望のカラーイメージ';
+      const q1input = document.createElement('textarea');
+      q1input.placeholder = '例：明るめのブラウン、艶感重視 など';
+      q1input.rows = 2;
+      q1input.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:8px 12px;font-size:13px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);resize:none;line-height:1.6;';
+      q1input.oninput = () => { ans.q1 = q1input.value.trim(); };
+      q1wrap.appendChild(q1lbl);
+      q1wrap.appendChild(q1input);
+      q1 = q1wrap;
+    }
   } else if (isShiragaSome) {
-    // 白髪染め：q1は不要（ans.q1を固定値に）
     ans.q1 = '白髪染め';
     q1 = null;
   } else {
+    // デザインカラー：テキスト入力（新規・常連 共通、注意書きは新規のみ）
     const q1wrap = document.createElement('div');
     const q1lbl = document.createElement('div');
     q1lbl.style.cssText = 'font-size:12px;color:var(--muted);margin:12px 0 4px;font-weight:500;';
-    q1lbl.textContent = '① ご希望のカラースタイル';
-    const q1note = document.createElement('div');
-    q1note.style.cssText = 'font-size:11px;color:var(--danger);margin-bottom:6px;line-height:1.6;';
-    q1note.textContent = '※ ご希望の内容によってはお受けできない場合がございます。グラデーション・バレイヤージュ・ブリーチ全体はお受けできません。';
+    q1lbl.textContent = isNew ? '① ご希望のカラースタイル' : 'ご希望のカラースタイル';
+    if (isNew) {
+      const q1note = document.createElement('div');
+      q1note.style.cssText = 'font-size:11px;color:var(--danger);margin-bottom:6px;line-height:1.6;';
+      q1note.textContent = '※ ご希望の内容によってはお受けできない場合がございます。グラデーション・バレイヤージュ・ブリーチ全体はお受けできません。';
+      q1wrap.appendChild(q1lbl);
+      q1wrap.appendChild(q1note);
+    } else {
+      q1wrap.appendChild(q1lbl);
+    }
     const q1input = document.createElement('textarea');
     q1input.placeholder = 'ご希望のスタイルやイメージをできるだけ詳しくお書きください。';
     q1input.rows = 2;
     q1input.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:8px 12px;font-size:13px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);resize:none;line-height:1.6;';
     q1input.oninput = () => { ans.q1 = q1input.value.trim(); };
-    q1wrap.appendChild(q1lbl);
-    q1wrap.appendChild(q1note);
     q1wrap.appendChild(q1input);
     q1 = q1wrap;
   }
 
-  // ② 髪の状態
-  const q2 = mkQuestion('② 現在の髪の状態', [
-    '健康でダメージなし','少しダメージあり','ダメージが気になる',
-    'パサつき・広がりあり','くせ毛・うねりあり','細くてやわらかい','太くて硬い',
-  ], v => { ans.condition = v; });
+  // ② 髪の状態（新規のみ）
+  let q2 = null;
+  if (isNew) {
+    q2 = mkQuestion('② 現在の髪の状態', [
+      '健康でダメージなし','少しダメージあり','ダメージが気になる',
+      'パサつき・広がりあり','くせ毛・うねりあり','細くてやわらかい','太くて硬い',
+    ], v => { ans.condition = v; });
+  }
 
-  // ③ 直近の毛染め歴
-  const q3label = document.createElement('div');
-  q3label.style.cssText = 'font-size:12px;color:var(--muted);margin:12px 0 6px;font-weight:500;';
-  q3label.textContent = '③ 直近の毛染め歴';
-  const q3choices = document.createElement('div');
-  q3choices.className = 'choices';
+  // ③ 直近の毛染め歴（新規のみ）
+  let q3label = null, q3choices = null;
   let selectedDyeExps = [];
   const dyeBtnMap = {};
+  if (isNew) {
+    q3label = document.createElement('div');
+    q3label.style.cssText = 'font-size:12px;color:var(--muted);margin:12px 0 6px;font-weight:500;';
+    q3label.textContent = '③ 直近の毛染め歴';
+    q3choices = document.createElement('div');
+    q3choices.className = 'choices';
 
-  ['染めたことがない','1ヶ月以内','2〜3ヶ月前','半年前','1年以上前','自宅染め'].forEach(v => {
-    const btn = document.createElement('button');
-    btn.className = 'c-btn';
-    btn.textContent = v;
-    dyeBtnMap[v] = btn;
-    btn.onclick = () => {
-      const idx = selectedDyeExps.indexOf(v);
-      if (idx >= 0) {
-        selectedDyeExps.splice(idx, 1);
-        btn.style.background = ''; btn.style.color = '';
-      } else {
-        // 「染めたことがない」選択時は他を全解除
-        if (v === '染めたことがない') {
-          selectedDyeExps = ['染めたことがない'];
-          Object.entries(dyeBtnMap).forEach(([k, b]) => {
-            b.style.background = ''; b.style.color = '';
-            b.disabled = k !== '染めたことがない';
-            b.style.opacity = k !== '染めたことがない' ? '0.3' : '1';
-          });
-          btn.style.background = 'var(--accent)'; btn.style.color = 'white';
-          btn.disabled = false; btn.style.opacity = '1';
+    ['染めたことがない','1ヶ月以内','2〜3ヶ月前','半年前','1年以上前','自宅染め'].forEach(v => {
+      const btn = document.createElement('button');
+      btn.className = 'c-btn';
+      btn.textContent = v;
+      dyeBtnMap[v] = btn;
+      btn.onclick = () => {
+        const idx = selectedDyeExps.indexOf(v);
+        if (idx >= 0) {
+          selectedDyeExps.splice(idx, 1);
+          btn.style.background = ''; btn.style.color = '';
         } else {
-          // 他を選ぶ場合は「染めたことがない」を解除
-          const noneIdx = selectedDyeExps.indexOf('染めたことがない');
-          if (noneIdx >= 0) {
-            selectedDyeExps.splice(noneIdx, 1);
-            dyeBtnMap['染めたことがない'].style.background = '';
-            dyeBtnMap['染めたことがない'].style.color = '';
+          if (v === '染めたことがない') {
+            selectedDyeExps = ['染めたことがない'];
+            Object.entries(dyeBtnMap).forEach(([k, b]) => {
+              b.style.background = ''; b.style.color = '';
+              b.disabled = k !== '染めたことがない';
+              b.style.opacity = k !== '染めたことがない' ? '0.3' : '1';
+            });
+            btn.style.background = 'var(--accent)'; btn.style.color = 'white';
+            btn.disabled = false; btn.style.opacity = '1';
+          } else {
+            const noneIdx = selectedDyeExps.indexOf('染めたことがない');
+            if (noneIdx >= 0) {
+              selectedDyeExps.splice(noneIdx, 1);
+              dyeBtnMap['染めたことがない'].style.background = '';
+              dyeBtnMap['染めたことがない'].style.color = '';
+            }
+            Object.values(dyeBtnMap).forEach(b => { b.disabled = false; b.style.opacity = '1'; });
+            selectedDyeExps.push(v);
+            btn.style.background = 'var(--accent)'; btn.style.color = 'white';
           }
-          // 全ボタンを有効化
-          Object.values(dyeBtnMap).forEach(b => { b.disabled = false; b.style.opacity = '1'; });
-          selectedDyeExps.push(v);
-          btn.style.background = 'var(--accent)'; btn.style.color = 'white';
         }
-      }
-      // 「染めたことがない」が選ばれていない場合は全ボタン有効
-      if (!selectedDyeExps.includes('染めたことがない')) {
-        Object.values(dyeBtnMap).forEach(b => { b.disabled = false; b.style.opacity = '1'; });
-      }
-      ans.dyeExp = selectedDyeExps.join('・');
-    };
-    q3choices.appendChild(btn);
-  });
+        if (!selectedDyeExps.includes('染めたことがない')) {
+          Object.values(dyeBtnMap).forEach(b => { b.disabled = false; b.style.opacity = '1'; });
+        }
+        ans.dyeExp = selectedDyeExps.join('・');
+      };
+      q3choices.appendChild(btn);
+    });
+  }
 
-  // ④ ブリーチ経験（デザインカラーのみ）
+  // ④ ブリーチ経験（デザインカラー かつ 新規のみ）
   let q4 = null;
-  if (!isOshare && !isShiragaSome) {
+  if (!isOshare && !isShiragaSome && isNew) {
     const q4wrap = document.createElement('div');
     const q4lbl = document.createElement('div');
     q4lbl.style.cssText = 'font-size:12px;color:var(--muted);margin:12px 0 6px;font-weight:500;';
@@ -2218,11 +2243,16 @@ function showColorCounseling(type) {
 
   // 送信ボタン
   const doneBtn = mkDoneBtn(() => {
-    if (!ans.q1 || !ans.condition || !ans.dyeExp) return false;
-    if (!isOshare && !isShiragaSome && !ans.bleach) return false;
-    const q1label = isOshare ? '明るさ' : isShiragaSome ? '種別' : 'スタイル';
-    const bleachPart = (!isOshare && !isShiragaSome) ? `／ブリーチ経験：${ans.bleach}` : '';
-    bk.counseling = `${q1label}：${ans.q1}／髪の状態：${ans.condition}／毛染め歴：${ans.dyeExp}${bleachPart}`;
+    if (!ans.q1 && !isShiragaSome) return false;
+    if (isNew && (!ans.condition || !ans.dyeExp)) return false;
+    if (isNew && !isOshare && !isShiragaSome && !ans.bleach) return false;
+    const q1label = isOshare ? '明るさ／イメージ' : isShiragaSome ? '種別' : 'スタイル';
+    if (isNew) {
+      const bleachPart = (!isOshare && !isShiragaSome) ? `／ブリーチ経験：${ans.bleach}` : '';
+      bk.counseling = `${q1label}：${ans.q1}／髪の状態：${ans.condition}／毛染め歴：${ans.dyeExp}${bleachPart}`;
+    } else {
+      bk.counseling = `${q1label}：${ans.q1}`;
+    }
     userMsg(bk.counseling);
     lockWrap(wrap);
     setTimeout(() => afterCounseling(), 400);
@@ -2247,9 +2277,8 @@ function showColorCounseling(type) {
   };
 
   if (q1) bub.appendChild(q1);
-  bub.appendChild(q2);
-  bub.appendChild(q3label);
-  bub.appendChild(q3choices);
+  if (q2) bub.appendChild(q2);
+  if (q3label) { bub.appendChild(q3label); bub.appendChild(q3choices); }
   if (q4) bub.appendChild(q4);
   bub.appendChild(doneBtn);
   bub.appendChild(backBtn);
@@ -2558,40 +2587,9 @@ async function processInput(input) {
   } else if (step === 'permType') {
     bk.permType = input;
 
-    // デザインパーマ → 新規はカウンセリングのみ、常連はテキスト入力
+    // デザインパーマ → 新規・常連ともカウンセリングへ（関数内でisNew分岐）
     if (input === 'デザインパーマ') {
-      if (isNew) {
-        // 新規：テキストなし、即カウンセリングへ
-        setTimeout(() => showPermCounseling(), 400);
-      } else {
-        // 常連：テキスト入力 → 次へ
-        showOtherInput('permDesign', 'デザインパーマのご希望スタイルをご記入ください。\n（例：スパイラルパーマ、ニュアンスパーマ など）', 'パーマ種類に戻る', () => {
-          step = 'permType';
-          msg('ai', 'パーマの種類をお選びください。', [
-            'ノーマルパーマ',
-            'デザインパーマ',
-            'その他',
-          ]);
-        }, (val) => {
-          bk.permDetail = val;
-          if (selectedOptions.includes('カラー')) {
-            step = 'colorType';
-            msgWithBack('カラーの種類をお選びください。', [
-              'おしゃれ染め', '白髪染め',
-              'デザインカラー（インナーカラー・部分カラー）', 'その他',
-            ], 'permType', 'パーマ種類に戻る', () => {
-              step = 'permType';
-              msg('ai', 'パーマの種類をお選びください。', [
-                'ノーマルパーマ',
-                'デザインパーマ',
-                'その他',
-              ]);
-            });
-          } else {
-            goToHairState();
-          }
-        });
-      }
+      setTimeout(() => showPermCounseling(), 400);
     // その他 → テキスト入力
     } else if (input === 'その他') {
       showOtherInput('permOther', 'パーマのご希望内容をご記入ください。', 'パーマ種類に戻る', () => {
@@ -2646,48 +2644,20 @@ async function processInput(input) {
   } else if (step === 'colorType') {
     bk.colorType = input;
     // カラー種類の分岐
-    // 白髪染め → 新規・常連ともテキスト・カウンセリングなし、直接次へ
+    // 白髪染め → 新規・常連ともカウンセリングなし、直接次へ
     if (input === '白髪染め') {
       bk.duration = calcDuration();
       showNotesFinal();
 
-    // おしゃれ染め → 新規：カウンセリング、常連：テキスト入力
+    // おしゃれ染め → 新規・常連ともカウンセリングへ（関数内でisNew分岐）
     } else if (input === 'おしゃれ染め') {
       bk.duration = calcDuration();
-      if (isNew) {
-        showColorCounseling('おしゃれ');
-      } else {
-        showOtherInput('colorOshare', 'ご希望のカラーイメージをご記入ください。\n（例：明るめのブラウン、艶感重視 など）', 'カラー種類に戻る', () => {
-          step = 'colorType';
-          msg('ai', 'カラーの種類をお選びください。', [
-            'おしゃれ染め', '白髪染め',
-            'デザインカラー（インナーカラー・部分カラー）', 'その他',
-          ]);
-        }, (val) => {
-          bk.colorDetail = val;
-          bk.duration = calcDuration();
-          showNotesFinal();
-        });
-      }
+      showColorCounseling('おしゃれ');
 
-    // デザインカラー → 新規：カウンセリング、常連：テキスト入力
+    // デザインカラー → 新規・常連ともカウンセリングへ（関数内でisNew分岐）
     } else if (input === 'デザインカラー（インナーカラー・部分カラー）') {
       bk.duration = calcDuration();
-      if (isNew) {
-        showColorCounseling('デザイン');
-      } else {
-        showOtherInput('colorDesign', 'ご希望のデザインカラーをご記入ください。\n（例：インナーカラー、毛先グラデーション など）', 'カラー種類に戻る', () => {
-          step = 'colorType';
-          msg('ai', 'カラーの種類をお選びください。', [
-            'おしゃれ染め', '白髪染め',
-            'デザインカラー（インナーカラー・部分カラー）', 'その他',
-          ]);
-        }, (val) => {
-          bk.colorDetail = val;
-          bk.duration = calcDuration();
-          showNotesFinal();
-        });
-      }
+      showColorCounseling('デザイン');
 
     // その他 → 新規・常連ともテキスト入力
     } else if (input === 'その他') {
