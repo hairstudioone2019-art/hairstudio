@@ -679,7 +679,7 @@ function showNameInput(isNewCustomer) {
 
   const input = document.createElement('input');
   input.type = 'text';
-  input.placeholder = '例）山田 花子';
+  input.placeholder = '例）山田 まる子';
   input.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:10px 14px;font-size:16px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);margin-top:10px;box-sizing:border-box;';
 
   const doneBtn = document.createElement('button');
@@ -4395,12 +4395,15 @@ window.onload = () => {
     });
     chat.scrollTop = chat.scrollHeight;
     // 続きから再開
-    step = 'type';
-    setTimeout(() => {
-      msg('ai', 'おかえりなさい😊\n予約を続けますか？', [
-        { label: '予約に進む', value: 'restart' }
-      ]);
-    }, 300);
+    localStorage.removeItem('hs_chat_history');
+chat.innerHTML = '';
+step = 'type';
+setTimeout(() => {
+  msg('ai', 'HairStudio ONEへようこそ。\nAI予約アシスタントが担当いたします。\n\n本日はご新規様ですか？', [
+    { label: '新規', value: '新規' },
+    { label: 'ご来店歴のあるお客様', value: '常連' }
+  ]);
+}, 500);
   } else {
     // 初回
     setTimeout(() => {
