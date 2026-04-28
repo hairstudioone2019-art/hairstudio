@@ -3302,8 +3302,9 @@ async function syncCalendarStatus(force = false) {
 
   try {
     // 28日分取得（カレンダー表示が4週間=28日のため）
-    const res = await fetch(`${GAS_URL}?action=getStatus&days=28`);
-    const json = await res.json();
+    const res = await fetch(`${GAS_URL}?action=getStatus&days=28`, { redirect: 'follow' });
+const text = await res.text();
+const json = JSON.parse(text);
     if (json.success && json.status) {
       if (!settings.dayStatus) settings.dayStatus = {};
       // ⭐ Googleカレンダー由来のステータスを反映
