@@ -744,19 +744,13 @@ function showUsageGuide(isNewCustomer) {
     }, 300);
   };
 
-  const msgBtn = document.createElement('button');
-  msgBtn.className = 'c-btn';
-  msgBtn.textContent = '💬 メッセージで予約';
-  msgBtn.onclick = () => {
-    btnWrap.querySelectorAll('button').forEach(b => b.disabled = true);
-    userMsg('メッセージで予約');
-    step = 'direct_msg';
-    setTimeout(() => showDirectMsgInput(), 300);
-  };
-
   btnWrap.appendChild(formBtn);
-  btnWrap.appendChild(msgBtn);
-  bub.appendChild(btnWrap);
+
+const noteEl = document.createElement('div');
+noteEl.style.cssText = 'margin-top:10px;font-size:12px;color:var(--muted);line-height:1.8;padding:8px 12px;background:rgba(139,111,71,0.06);border-radius:8px;';
+noteEl.textContent = '※ メッセージでご予約をご希望の方はLINEチャットページの左下にある⌨️アイコンからトーク画面に移ります。';
+bub.appendChild(btnWrap);
+bub.appendChild(noteEl);
   wrap.appendChild(av); wrap.appendChild(bub);
   chat.appendChild(wrap);
   chat.scrollTop = chat.scrollHeight;
