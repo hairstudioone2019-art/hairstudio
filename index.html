@@ -2477,7 +2477,6 @@ async function submitBooking() {
   localStorage.setItem('hs_requests', JSON.stringify(requests));
   updateBadge();
   // LINE通知 + スプレッドシート保存
-  sendLineNotify('new_booking', req);
   saveBookingToSpreadsheet(req);
   msg('ai', `ご予約申請を受け付けました。\n\n確認にお時間をいただく場合がございますが、もうしばらくお待ちください。\nよろしくお願いいたします。`);
   step = 'done';
