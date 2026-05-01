@@ -1177,13 +1177,14 @@ function getAvailableDates() {
       bk.cutMenu === 'カット＋追加メニュー' ||
       bk.cutMenu === 'カット無し（オプションのみ）'
     );
+    let menuDisabled = false;
     if (needsLongSlot && !isClosed && !full) {
       const hasLongSlot = amStatus === 'ok' || amStatus === 'ok-dim' ||
                           pmStatus === 'ok' || pmStatus === 'ok-dim';
-      if (!hasLongSlot) continue; // カットのみの日はスキップ
+      if (!hasLongSlot) menuDisabled = true; // カットのみの日はグレーアウト
     }
 
-    result.push({ date: d, label: dateStr, day: days[dow], dayNum: dow, full, closed: isClosed });
+    result.push({ date: d, label: dateStr, day: days[dow], dayNum: dow, full, closed: isClosed, menuDisabled });
   }
   return result;
 }
@@ -1374,6 +1375,10 @@ function showDatePicker() {
         chip.className = `d-chip holiday${sunCls}`;
         chip.dataset.label = dObj.label;
         chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休日</span></div>`;
+      } else if (dObj.menuDisabled) {
+        chip.className = `d-chip disabled${sunCls}`;
+        chip.dataset.label = dObj.label;
+        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-cut"></div><div class="d-chip-side-bot side-cut"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name" style="font-size:9px;">カットのみ</span></div>`;
       } else if (dObj.full) {
         chip.className = `d-chip full${sunCls}`;
         chip.dataset.label = dObj.label;
