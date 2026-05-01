@@ -1179,9 +1179,9 @@ function getAvailableDates() {
     );
     let menuDisabled = false;
     if (needsLongSlot && !isClosed && !full) {
-      const hasLongSlot = amStatus === 'ok' || amStatus === 'ok-dim' ||
-                          pmStatus === 'ok' || pmStatus === 'ok-dim';
-      if (!hasLongSlot) menuDisabled = true; // カットのみの日はグレーアウト
+      // 日全体のステータスがcut-onlyならグレーアウト（2時間枠なし）
+      const dayOverall = settings.dayStatus[dateStr] || 'ok';
+      if (dayOverall === 'cut-only') menuDisabled = true;
     }
 
     result.push({ date: d, label: dateStr, day: days[dow], dayNum: dow, full, closed: isClosed, menuDisabled });
