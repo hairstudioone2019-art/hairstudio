@@ -4088,6 +4088,7 @@ function showToast(text) {
 
 // ===== 初期化 =====
 window.onload = () => {
+  syncCalendarStatus(); // ページ読み込み時にカレンダー状態を自動同期
   updateBadge();
   // 会話履歴の復元
   const history = JSON.parse(localStorage.getItem('hs_chat_history') || '[]');
