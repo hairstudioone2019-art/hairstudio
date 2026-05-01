@@ -1171,6 +1171,18 @@ function getAvailableDates() {
     const amStatus = settings.dayStatus[dateStr + '_am'] || baseStatus;
     const pmStatus = settings.dayStatus[dateStr + '_pm'] || baseStatus;
     const full = !isClosed && amStatus === 'full' && pmStatus === 'full';
+
+    // 長時間メニュー（カット＋追加・カット無しオプション）は2時間枠のある日のみ表示
+    const needsLongSlot = bk && (
+      bk.cutMenu === 'カット＋追加メニュー' ||
+      bk.cutMenu === 'カット無し（オプションのみ）'
+    );
+    if (needsLongSlot && !isClosed && !full) {
+      const hasLongSlot = amStatus === 'ok' || amStatus === 'ok-dim' ||
+                          pmStatus === 'ok' || pmStatus === 'ok-dim';
+      if (!hasLongSlot) continue; // カットのみの日はスキップ
+    }
+
     result.push({ date: d, label: dateStr, day: days[dow], dayNum: dow, full, closed: isClosed });
   }
   return result;
