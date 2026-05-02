@@ -244,10 +244,11 @@ body::before {
 .d-chip.holiday .d-name { color:#c8c0b8; }
 .d-chip.holiday .d-chip-side-top,.d-chip.holiday .d-chip-side-bot { background:#d8d4d0; }
 /* 左ラインの色 */
-.side-ok   { background:#4a9fd4; }
-.side-cut  { background:#f5aa00; }
-.side-full { background:#e03030; }
-.side-off  { background:#d8d4d0; }
+.side-ok      { background:#4a9fd4; }
+.side-ok-dim  { background:#a8d4ef; }
+.side-cut     { background:#f5aa00; }
+.side-full    { background:#e03030; }
+.side-off     { background:#d8d4d0; }
 /* 選択状態 */
 .d-chip.selected .d-chip-side-top,.d-chip.selected .d-chip-side-bot { opacity:0.7; }
 /* 管理カレンダー用 */
@@ -1178,7 +1179,7 @@ function getUsedMinutes(dateLabel) {
 
 // 左2色ラインのHTML生成
 function chipSideHtml(amStatus, pmStatus) {
-  const cls = { ok:'side-ok', 'cut-only':'side-cut', full:'side-full', closed:'side-off', holiday:'side-off' };
+  const cls = { ok:'side-ok', 'ok-dim':'side-ok-dim', 'cut-only':'side-cut', full:'side-full', closed:'side-off', holiday:'side-off' };
   const am = cls[amStatus] || 'side-ok';
   const pm = cls[pmStatus] || 'side-ok';
   return `<div class="d-chip-side"><div class="d-chip-side-top ${am}"></div><div class="d-chip-side-bot ${pm}"></div></div>`;
@@ -1203,12 +1204,13 @@ function getAvailabilityLevel(dateLabel) {
   const pm = settings.dayStatus[dateLabel + '_pm'] || base;
   // 両方満枠
   if (am === 'full' && pm === 'full') return 'full';
-  // 両方空き
-  if (am === 'ok' && pm === 'ok') return 'ok';
   // どちらかがcut-only（黄色）
   if (am === 'cut-only' || pm === 'cut-only') return 'some';
   // 片方が満枠・片方が空き → カットのみ扱い
   if (am === 'full' || pm === 'full') return 'some';
+  // どちらかがok-dim（薄青）
+  if (am === 'ok-dim' || pm === 'ok-dim') return 'ok-dim';
+  // 両方空き
   return 'ok';
 }
 
@@ -1361,8 +1363,9 @@ function showDatePicker() {
         const avail = getAvailabilityLevel(dObj.label);
         const { am: amSt, pm: pmSt } = getDayStatuses(dObj.label);
         const isSelectable = avail !== 'few' && avail !== 'full';
-        const amCls = amSt === 'full' ? 'side-full' : amSt === 'cut-only' ? 'side-cut' : 'side-ok';
-        const pmCls = pmSt === 'full' ? 'side-full' : pmSt === 'cut-only' ? 'side-cut' : 'side-ok';
+        const stCls = s => s === 'full' ? 'side-full' : s === 'cut-only' ? 'side-cut' : s === 'ok-dim' ? 'side-ok-dim' : 'side-ok';
+        const amCls = stCls(amSt);
+        const pmCls = stCls(pmSt);
         // 黄色の日：どちらかがcut-only、または片方が満枠で両方は満枠でない
         const isCutOnlyDay = isSelectable && (amSt === 'cut-only' || pmSt === 'cut-only' || amSt === 'full' || pmSt === 'full');
         chip.className = `d-chip${sunCls}${!isSelectable ? ' avail-few' : ''}`;
@@ -2788,8 +2791,9 @@ function renderAdminCalendar() {
         // 通常日：午前・午後それぞれタップで切り替え
         const amStatus = settings.dayStatus[label + '_am'] || settings.dayStatus[label] || 'ok';
         const pmStatus = settings.dayStatus[label + '_pm'] || settings.dayStatus[label] || 'ok';
-        const amCls = amStatus === 'full' ? 'side-full' : amStatus === 'cut-only' ? 'side-cut' : 'side-ok';
-        const pmCls = pmStatus === 'full' ? 'side-full' : pmStatus === 'cut-only' ? 'side-cut' : 'side-ok';
+        const stClsA = s => s === 'full' ? 'side-full' : s === 'cut-only' ? 'side-cut' : s === 'ok-dim' ? 'side-ok-dim' : 'side-ok';
+        const amCls = stClsA(amStatus);
+        const pmCls = stClsA(pmStatus);
         chip.className = `d-chip${sunCls}`;
         chip.style.cursor = 'pointer';
         chip.innerHTML = `
@@ -3133,6 +3137,8 @@ async function syncCalendarStatus(force = false) {
       localStorage.setItem('hs_settings', JSON.stringify(settings));
       localStorage.setItem('hs_last_sync', Date.now().toString());
       renderAdmin && renderAdmin();
+      // カレンダーが表示中なら再描画して色を反映
+      if (typeof refreshCustomerCalendar === 'function') refreshCustomerCalendar();
       console.log('カレンダーステータス同期完了:', Object.keys(json.status).length + '日分');
     }
   } catch (e) {
