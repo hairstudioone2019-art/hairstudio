@@ -703,10 +703,7 @@ function showUsageGuide(isNewCustomer) {
     btnWrap.querySelectorAll('button').forEach(b => b.disabled = true);
     userMsg('予約フォーム');
     setTimeout(() => {
-      const menuGreeting = isNewCustomer
-        ? `${bk.name}様、はじめまして！\nまずご希望のメニューをお選びください。`
-        : `${bk.name}様、いつもありがとうございます！\nご希望のメニューをお選びください。`;
-      showCutMenuPicker(menuGreeting);
+      showSimpleMenuPicker();
     }, 300);
   };
 
@@ -784,6 +781,59 @@ function showDirectMsgInput() {
 }
 
 // ===== カットメニュー選択（プルダウン付き）=====
+// ===== シンプルメニュー選択（予約フォームの最初） =====
+const MENU_DURATION = {
+  'カット':        '1h',
+  'パーマ':        '2h',
+  'カラー':        '2h',
+  '縮毛矯正':      '3h',
+  'パーマ&カラー': '4h',
+  'その他':        '2h',
+};
+
+function showSimpleMenuPicker() {
+  step = 'menuSelect';
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ai';
+  const av = document.createElement('div');
+  av.className = 'av ai'; av.innerHTML = document.querySelector('.av.ai img') ? `<img src="${document.querySelector('.av.ai img').src}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">` : '';
+  const bub = document.createElement('div');
+  bub.className = 'bubble';
+  bub.textContent = `${bk.name}様、ご希望のメニューをお選びください。\n（詳細は来店時にご相談いただけます）`;
+
+  const choicesDiv = document.createElement('div');
+  choicesDiv.className = 'choices';
+  choicesDiv.style.marginTop = '10px';
+
+  const menuList = [
+    { name: 'カット',        desc: 'カット（約1時間）' },
+    { name: 'パーマ',        desc: 'パーマ（約2時間）' },
+    { name: 'カラー',        desc: 'カラー（約2時間）' },
+    { name: '縮毛矯正',      desc: '縮毛矯正（約3時間）' },
+    { name: 'パーマ&カラー', desc: 'パーマ＆カラー（約4時間）' },
+    { name: 'その他',        desc: 'その他・ご相談（約2時間）' },
+  ];
+
+  menuList.forEach(({ name, desc }) => {
+    const btn = document.createElement('button');
+    btn.className = 'c-btn';
+    btn.textContent = desc;
+    btn.onclick = () => {
+      choicesDiv.querySelectorAll('.c-btn').forEach(b => b.disabled = true);
+      userMsg(desc);
+      bk.cutMenu = name;
+      bk.menuDuration = MENU_DURATION[name] || '2h';
+      setTimeout(() => showDatePicker(), 300);
+    };
+    choicesDiv.appendChild(btn);
+  });
+
+  bub.appendChild(choicesDiv);
+  wrap.appendChild(av); wrap.appendChild(bub);
+  document.getElementById('chat').appendChild(wrap);
+  document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+}
+
 function showCutMenuPicker(text) {
   step = 'cutMenu';
   const wrap = document.createElement('div');
@@ -898,35 +948,17 @@ function showCutMenuPicker(text) {
   chat.scrollTop = chat.scrollHeight;
 }
 
-// カレンダー選択後のメニュー別続き処理
+// カレンダー選択後→備考へ直接
 function continueAfterCalendar() {
-  const menu = bk.cutMenu || '';
-  if (menu === 'カット無し（オプションのみ）') {
-    bk.hairLength = ''; bk.options = [];
-    setTimeout(() => showOptionPicker(), 400);
-  } else if (menu === 'カット＋追加メニュー') {
-    step = 'hairLength';
-    setTimeout(() => msgWithBack('髪の長さをお選びください。', [
-      'ショート（肩上）', 'ミディアム（肩〜胸あたり）', 'ロング（胸より下）',
-    ], 'cutMenu', 'カットメニューに戻る', () => {
-      step = 'cutMenu'; showCutMenuPicker('カットメニューをお選びください。');
-    }), 400);
-  } else {
-    bk.hairLength = ''; bk.options = [];
-    bk.duration = calcDuration();
-    showNotesFinal();
-  }
+  bk.hairLength = '';
+  bk.options = [];
+  bk.duration = calcDuration();
+  setTimeout(() => showNotesFinal(), 400);
 }
 
 function processCutMenuChoice(menu, cutType) {
   bk.cutMenu = menu;
   if (cutType) bk.cutType = cutType;
-  // カレンダー未選択 → カレンダーへ
-  if (!bk.datesStr) {
-    msg('ai', `「${menu}」を選びました。\n次にご希望の日程をお選びください。`);
-    setTimeout(() => showDatePicker(), 400);
-    return;
-  }
   // カレンダー選択済み → メニュー別の続きへ
   continueAfterCalendar();
 }
@@ -1173,23 +1205,7 @@ function getAvailableDates() {
     const amStatus = settings.dayStatus[dateStr + '_am'] || baseStatus;
     const pmStatus = settings.dayStatus[dateStr + '_pm'] || baseStatus;
     const full = !isClosed && amStatus === 'full' && pmStatus === 'full';
-
-    // 長時間メニュー（カット＋追加・カット無しオプション）は2時間枠のある日のみ表示
-    const needsLongSlot = bk && (
-      bk.cutMenu === 'カット＋追加メニュー' ||
-      bk.cutMenu === 'カット無し（オプションのみ）'
-    );
-    let menuDisabled = false;
-    if (needsLongSlot && !isClosed && !full) {
-      // 午前・午後どちらにも2時間枠がない日はグレーアウト
-      const dayOverall = settings.dayStatus[dateStr] || 'ok';
-      const amOv = settings.dayStatus[dateStr + '_am'] || dayOverall;
-      const pmOv = settings.dayStatus[dateStr + '_pm'] || dayOverall;
-      const has2hSlot = s => s === 'ok' || s === 'ok-dim';
-      if (!has2hSlot(amOv) && !has2hSlot(pmOv)) menuDisabled = true;
-    }
-
-    result.push({ date: d, label: dateStr, day: days[dow], dayNum: dow, full, closed: isClosed, menuDisabled });
+    result.push({ date: d, label: dateStr, day: days[dow], dayNum: dow, full, closed: isClosed });
   }
   return result;
 }
@@ -1230,11 +1246,13 @@ function getAvailabilityLevel(dateLabel) {
   const pm = settings.dayStatus[dateLabel + '_pm'] || base;
   // 両方満枠
   if (am === 'full' && pm === 'full') return 'full';
-  // どちらかがcut系（黄色）、または片方が満枠
-  if (am === 'cut' || pm === 'cut' || am === 'cut-dim' || pm === 'cut-dim' || am === 'full' || pm === 'full') return 'some';
+  // どちらかがcut/cut-dim（黄色）
+  if (am === 'cut' || pm === 'cut' || am === 'cut-dim' || pm === 'cut-dim') return 'some';
+  // 片方が満枠・片方が空き → カットのみ扱い
+  if (am === 'full' || pm === 'full') return 'some';
   // どちらかがok-dim（薄青）
   if (am === 'ok-dim' || pm === 'ok-dim') return 'ok-dim';
-  // 両方ok（濃青）
+  // 両方空き
   return 'ok';
 }
 
@@ -1379,10 +1397,6 @@ function showDatePicker() {
         chip.className = `d-chip holiday${sunCls}`;
         chip.dataset.label = dObj.label;
         chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休日</span></div>`;
-      } else if (dObj.menuDisabled) {
-        chip.className = `d-chip disabled${sunCls}`;
-        chip.dataset.label = dObj.label;
-        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-cut"></div><div class="d-chip-side-bot side-cut"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name" style="font-size:9px;">カットのみ</span></div>`;
       } else if (dObj.full) {
         chip.className = `d-chip full${sunCls}`;
         chip.dataset.label = dObj.label;
@@ -1390,11 +1404,20 @@ function showDatePicker() {
       } else {
         const avail = getAvailabilityLevel(dObj.label);
         const { am: amSt, pm: pmSt } = getDayStatuses(dObj.label);
-        const isSelectable = avail !== 'few' && avail !== 'full';
         const stCls = s => s === 'full' ? 'side-full' : s === 'cut' ? 'side-cut' : s === 'cut-dim' ? 'side-cut-dim' : s === 'ok-dim' ? 'side-ok-dim' : 'side-ok';
         const amCls = stCls(amSt);
         const pmCls = stCls(pmSt);
-        // 黄色の日：どちらかがcut系（カット枠のみ）、または片方が満枠で両方は満枠でない
+        // メニューの所要時間に基づいて選択可能か判定
+        const dur = bk.menuDuration || '1h';
+        const hasOk    = amSt === 'ok'     || pmSt === 'ok';
+        const hasOkDim = amSt === 'ok-dim' || pmSt === 'ok-dim';
+        const hasCut   = amSt === 'cut'    || pmSt === 'cut' || amSt === 'cut-dim' || pmSt === 'cut-dim';
+        let isSelectable;
+        if (dur === '1h')      isSelectable = hasOk || hasOkDim || hasCut; // cut系も可
+        else if (dur === '2h') isSelectable = hasOk || hasOkDim;           // 青系のみ
+        else                   isSelectable = hasOk;                        // 3h/4h：濃青のみ
+        if (avail === 'full')  isSelectable = false;
+        // 黄色の日：どちらかがcut/cut-dim、または片方が満枠で両方は満枠でない
         const isCutOnlyDay = isSelectable && (amSt === 'cut' || pmSt === 'cut' || amSt === 'cut-dim' || pmSt === 'cut-dim' || amSt === 'full' || pmSt === 'full');
         chip.className = `d-chip${sunCls}${!isSelectable ? ' avail-few' : ''}`;
         chip.dataset.label = dObj.label;
@@ -1504,17 +1527,18 @@ function askTimeForDate(idx) {
       const lbl = sd.label;
       const am = settings.dayStatus[lbl + '_am'] || settings.dayStatus[lbl] || 'ok';
       const pm = settings.dayStatus[lbl + '_pm'] || settings.dayStatus[lbl] || 'ok';
-      // 選んだ時間帯のステータスがcut-only or fullかチェック
-      if (t.includes('午前') && am === 'cut-only') return true;
-      if (t.includes('午後') && pm === 'cut-only') return true;
+      // 選んだ時間帯のステータスがcut/cut-dim or fullかチェック
+      const isCut = s => s === 'cut' || s === 'cut-dim';
+      if (t.includes('午前') && isCut(am)) return true;
+      if (t.includes('午後') && isCut(pm)) return true;
       if (t.includes('午前') && am === 'full') return false; // 午前満枠は選べないはずだが念のため
       if (t.includes('午後') && pm === 'full') return false;
-      // おまかせの場合は両方cut-onlyなら制限
-      if (t.includes('おまかせ') && am === 'cut-only' && pm === 'cut-only') return true;
+      // おまかせの場合は両方cut系なら制限
+      if (t.includes('おまかせ') && isCut(am) && isCut(pm)) return true;
       return false;
     });
-    // 日程確定後→メニュー別の続きへ
-    continueAfterCalendar();
+    // 日程確定後→カットメニューへ
+    showCutMenuPicker('カットメニューをお選びください。');
     return;
   }
 
@@ -1667,7 +1691,7 @@ function askTimeForDate(idx) {
     const btn = document.createElement('button');
     btn.className = 'c-btn';
     const isFull = z.value === '午前' ? amFull : z.value === '午後' ? pmFull : false;
-    const isCutOnly = z.value === '午前' ? amSt === 'cut-only' : z.value === '午後' ? pmSt === 'cut-only' : false;
+    const isCutOnly = z.value === '午前' ? (amSt === 'cut' || amSt === 'cut-dim') : z.value === '午後' ? (pmSt === 'cut' || pmSt === 'cut-dim') : false;
     if (isFull) {
       btn.textContent = `${z.label}（満枠）`;
       btn.disabled = true;
@@ -2819,8 +2843,9 @@ function renderAdminCalendar() {
         // 通常日：午前・午後それぞれタップで切り替え
         const amStatus = settings.dayStatus[label + '_am'] || settings.dayStatus[label] || 'ok';
         const pmStatus = settings.dayStatus[label + '_pm'] || settings.dayStatus[label] || 'ok';
-        const amCls = amStatus === 'full' ? 'side-full' : amStatus === 'cut-only' ? 'side-cut' : 'side-ok';
-        const pmCls = pmStatus === 'full' ? 'side-full' : pmStatus === 'cut-only' ? 'side-cut' : 'side-ok';
+        const stClsA = s => s === 'full' ? 'side-full' : s === 'cut' ? 'side-cut' : s === 'cut-dim' ? 'side-cut-dim' : s === 'ok-dim' ? 'side-ok-dim' : 'side-ok';
+        const amCls = stClsA(amStatus);
+        const pmCls = stClsA(pmStatus);
         chip.className = `d-chip${sunCls}`;
         chip.style.cursor = 'pointer';
         chip.innerHTML = `
@@ -2831,8 +2856,8 @@ function renderAdminCalendar() {
           <div class="d-chip-body">
             <span class="d-num">${day}</span>
             <span class="d-name" style="font-size:8px;line-height:1.3;">
-              <span style="display:block;">前:${amStatus==='ok'?'空':amStatus==='cut-only'?'カット':'満'}</span>
-              <span style="display:block;">後:${pmStatus==='ok'?'空':pmStatus==='cut-only'?'カット':'満'}</span>
+              <span style="display:block;">前:${amStatus==='ok'||amStatus==='ok-dim'?'空':amStatus==='cut'||amStatus==='cut-dim'?'カット':'満'}</span>
+              <span style="display:block;">後:${pmStatus==='ok'||pmStatus==='ok-dim'?'空':pmStatus==='cut'||pmStatus==='cut-dim'?'カット':'満'}</span>
             </span>
           </div>`;
         // 午前ラインタップ
@@ -3089,7 +3114,7 @@ function makeCard(r) {
 // ========================================
 // Google Apps Script のURL（デプロイ後に貼り付け）
 // ========================================
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyCTo95I98Oqgk59lOWhcQDAgmQzPIcA8_LvPmsyqmgLpCMw_vs8TjYcbbZWvtanm4C3w/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyWRsrMpC7QviWJae68AFE7VWFkM3YCq9nLKj-UUvrbLIAhA473JuOGXKJ_i3awEiphzQ/exec';
 
 // ============================================================
 // LINE通知 + スプレッドシート保存
@@ -3140,8 +3165,50 @@ function saveBookingToSpreadsheet(booking) {
 // ============================================================
 // Googleカレンダーから空き枠を取得してカレンダー色を自動更新
 // ============================================================
+async function syncSettingsFromSheet(force = false) {
+  if (!GAS_URL || GAS_URL === 'YOUR_GAS_URL_HERE') {
+    console.log('🔴 GAS_URL未設定');
+    return;
+  }
+
+  // 5分以内のキャッシュがあればスキップ（強制フラグなし時）
+  if (!force) {
+    const lastFetch = parseInt(localStorage.getItem('hs_settings_last_fetch') || '0');
+    if (Date.now() - lastFetch < 5 * 60 * 1000) {
+      console.log('⏭️ 設定取得スキップ（キャッシュ有効）');
+      return;
+    }
+  }
+
+  console.log('🔵 syncSettingsFromSheet 開始:', GAS_URL + '?action=getSettings');
+  try {
+    const res = await fetch(`${GAS_URL}?action=getSettings`);
+    const json = await res.json();
+    if (json.success && json.settings) {
+      const local = JSON.parse(localStorage.getItem('hs_settings') || '{"maxHours":8,"closedDates":[],"dayStatus":{}}');
+      const merged = Object.assign({}, local, json.settings);
+      // dayStatusとclosedDatesはシート側を「正」として完全置換
+      merged.dayStatus = json.settings.dayStatus || {};
+      merged.closedDates = json.settings.closedDates || [];
+      settings = merged;
+      localStorage.setItem('hs_settings', JSON.stringify(settings));
+      localStorage.setItem('hs_settings_last_fetch', Date.now().toString());
+      console.log('✅ 設定同期完了:');
+      console.log('   - dayStatus件数:', Object.keys(settings.dayStatus||{}).length);
+      console.log('   - 休業日件数:', (settings.closedDates||[]).length);
+    } else {
+      console.log('🔴 設定取得失敗:', json);
+    }
+  } catch (e) {
+    console.log('🔴 設定同期エラー:', e.message);
+  }
+}
+
 async function syncCalendarStatus(force = false) {
   if (!GAS_URL || GAS_URL === 'YOUR_GAS_URL_HERE') return;
+
+  // ⭐ まずシートの手動設定（休業日・午前午後の固定）を取得
+  await syncSettingsFromSheet(force);
 
   // 5分以内のキャッシュがあればスキップ（強制フラグなし時）
   if (!force) {
@@ -3153,30 +3220,62 @@ async function syncCalendarStatus(force = false) {
   }
 
   try {
-    // 14日分のみ取得（30日→14日で高速化）
-    const res = await fetch(`${GAS_URL}?action=getStatus&days=14`);
-    const json = await res.json();
+    // 28日分取得（カレンダー表示が4週間=28日のため）
+    const res = await fetch(`${GAS_URL}?action=getStatus&days=28`, { redirect: 'follow' });
+    const text = await res.text();
+    const json = JSON.parse(text);
     if (json.success && json.status) {
       if (!settings.dayStatus) settings.dayStatus = {};
+      // ⭐ Googleカレンダー由来のステータスを反映
+      //    手動設定マーカー（_manual キー）が立っている日付だけは保護
       Object.keys(json.status).forEach(key => {
-        settings.dayStatus[key] = json.status[key];
+        const dateBase = key.replace(/_am$|_pm$/, '');
+        const isManual = settings.dayStatus[dateBase + '_manual'] === true;
+        if (!isManual) {
+          settings.dayStatus[key] = json.status[key];
+        }
       });
       localStorage.setItem('hs_settings', JSON.stringify(settings));
       localStorage.setItem('hs_last_sync', Date.now().toString());
-      renderAdmin && renderAdmin();
-      console.log('カレンダーステータス同期完了:', Object.keys(json.status).length + '日分');
+      if (typeof renderAdminCalendar === 'function') {
+        try { renderAdminCalendar(); } catch(e) {}
+      }
+      if (typeof updateAdminCalendarLastSync === 'function') {
+        try { updateAdminCalendarLastSync(); } catch(e) {}
+      }
+      if (typeof refreshCustomerCalendar === 'function') {
+        try { refreshCustomerCalendar(); } catch(e) {}
+      }
+      console.log('カレンダーステータス同期完了:', Object.keys(json.status).length + '件 反映');
+    } else {
+      console.log('同期失敗:', json);
     }
   } catch (e) {
-    console.log('カレンダー同期エラー（無視）:', e);
+    console.log('カレンダー同期エラー:', e);
   }
 }
 
 async function syncAndRefresh() {
-  const btn = document.querySelector('button[onclick="syncAndRefresh()"]');
+  const btn = document.getElementById('sync-cal-btn');
   if (btn) { btn.textContent = '⏳ 同期中...'; btn.disabled = true; }
-  await syncCalendarStatus(true); // 強制同期（キャッシュ無視）
+  await syncCalendarStatus(true);
   refreshCustomerCalendar();
-  if (btn) { btn.textContent = '✅ 同期・反映完了！'; btn.disabled = false; setTimeout(() => { btn.textContent = '📅 Googleカレンダーと同期して空き枠を更新'; }, 2000); }
+  if (btn) {
+    btn.textContent = '✅ 同期・反映完了！';
+    btn.disabled = false;
+    setTimeout(() => { if(typeof updateAdminCalendarLastSync==='function') updateAdminCalendarLastSync(); }, 2000);
+  }
+}
+
+function updateAdminCalendarLastSync() {
+  const btn = document.getElementById('sync-cal-btn');
+  if (!btn) return;
+  const lastSync = parseInt(localStorage.getItem('hs_last_sync') || '0');
+  if (!lastSync) { btn.textContent = '📅 Googleカレンダーと同期して空き枠を更新'; return; }
+  const d = new Date(lastSync);
+  const h = d.getHours().toString().padStart(2,'0');
+  const m = d.getMinutes().toString().padStart(2,'0');
+  btn.textContent = `📅 Googleカレンダーと同期する（最終更新 ${h}:${m}）`;
 }
 
 function sendToGoogleCalendar(r) {
@@ -4098,7 +4197,11 @@ function showToast(text) {
 
 // ===== 初期化 =====
 window.onload = () => {
-  syncCalendarStatus(); // ページ読み込み時にカレンダー状態を自動同期
+  // ページ読み込み時：まず設定を読み込んでからカレンダーと同期
+  (async () => {
+    await syncSettingsFromSheet(true);
+    await syncCalendarStatus(true);
+  })();
   updateBadge();
   // 会話履歴の復元
   const history = JSON.parse(localStorage.getItem('hs_chat_history') || '[]');
