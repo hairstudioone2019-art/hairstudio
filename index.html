@@ -3134,12 +3134,16 @@ async function syncCalendarStatus(force = false) {
       Object.keys(json.status).forEach(key => {
         settings.dayStatus[key] = json.status[key];
       });
+      // 定休日・臨時休業日もGASから取得して反映
+      if (json.closedDates && Array.isArray(json.closedDates)) {
+        settings.closedDates = json.closedDates;
+      }
       localStorage.setItem('hs_settings', JSON.stringify(settings));
       localStorage.setItem('hs_last_sync', Date.now().toString());
       renderAdmin && renderAdmin();
       // カレンダーが表示中なら再描画して色を反映
       if (typeof refreshCustomerCalendar === 'function') refreshCustomerCalendar();
-      console.log('カレンダーステータス同期完了:', Object.keys(json.status).length + '日分');
+      console.log('カレンダーステータス同期完了:', Object.keys(json.status).length + '日分, 休業日:', (json.closedDates||[]).length + '件');
     }
   } catch (e) {
     console.log('カレンダー同期エラー（無視）:', e);
