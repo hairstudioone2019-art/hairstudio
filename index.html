@@ -701,10 +701,7 @@ function showUsageGuide(isNewCustomer) {
     btnWrap.querySelectorAll('button').forEach(b => b.disabled = true);
     userMsg('予約フォーム');
     setTimeout(() => {
-      const menuGreeting = isNewCustomer
-        ? `${bk.name}様、はじめまして！\nまずご希望のメニューをお選びください。`
-        : `${bk.name}様、いつもありがとうございます！\nご希望のメニューをお選びください。`;
-      showCutMenuPicker(menuGreeting);
+      showDatePicker();
     }, 300);
   };
 
@@ -919,12 +916,6 @@ function continueAfterCalendar() {
 function processCutMenuChoice(menu, cutType) {
   bk.cutMenu = menu;
   if (cutType) bk.cutType = cutType;
-  // カレンダー未選択 → カレンダーへ
-  if (!bk.datesStr) {
-    msg('ai', `「${menu}」を選びました。\n次にご希望の日程をお選びください。`);
-    setTimeout(() => showDatePicker(), 400);
-    return;
-  }
   // カレンダー選択済み → メニュー別の続きへ
   continueAfterCalendar();
 }
@@ -1491,8 +1482,8 @@ function askTimeForDate(idx) {
       if (t.includes('おまかせ') && am === 'cut-only' && pm === 'cut-only') return true;
       return false;
     });
-    // 日程確定後→メニュー別の続きへ
-    continueAfterCalendar();
+    // 日程確定後→カットメニューへ
+    showCutMenuPicker('カットメニューをお選びください。');
     return;
   }
 
