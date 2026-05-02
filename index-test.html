@@ -228,6 +228,7 @@ body::before {
 .d-chip:hover { border-color:var(--accent); }
 .d-chip.disabled { opacity:.25;cursor:default;pointer-events:none;background:var(--warm); }
 .d-chip.disabled .d-chip-side-top,.d-chip.disabled .d-chip-side-bot { background:#d8d4d0; }
+.d-chip.menu-blocked { opacity:.25;cursor:default;pointer-events:none; }
 .d-chip.selected { border:2px solid var(--accent);background:rgba(139,111,71,0.1); }
 .d-chip.selected .d-num { color:var(--ink); }
 .d-chip.selected .d-name { color:var(--accent);font-weight:500; }
@@ -1419,7 +1420,7 @@ function showDatePicker() {
         if (avail === 'full')  isSelectable = false;
         // 黄色の日：どちらかがcut/cut-dim、または片方が満枠で両方は満枠でない
         const isCutOnlyDay = isSelectable && (amSt === 'cut' || pmSt === 'cut' || amSt === 'cut-dim' || pmSt === 'cut-dim' || amSt === 'full' || pmSt === 'full');
-        chip.className = `d-chip${sunCls}${!isSelectable ? ' avail-few' : ''}`;
+        chip.className = `d-chip${sunCls}${!isSelectable ? ' menu-blocked' : ''}`;
         chip.dataset.label = dObj.label;
         chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top ${amCls}"></div><div class="d-chip-side-bot ${pmCls}"></div></div><div class="d-chip-body"><span class="d-num">${day}</span></div>`;
         if (isSelectable) {
