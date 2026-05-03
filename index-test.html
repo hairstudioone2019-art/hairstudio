@@ -389,11 +389,12 @@ body::before {
 
 /* トースト */
 .toast {
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
-  background:var(--ink);color:var(--cream);padding:12px 24px;border-radius:100px;
-  font-size:13px;z-index:999;transition:transform .3s ease;pointer-events:none;
+  position:fixed;top:16px;right:16px;transform:translateY(-80px);
+  background:rgba(50,50,50,0.92);color:#fff;padding:9px 16px;border-radius:10px;
+  font-size:12px;z-index:9999;transition:transform .25s ease,opacity .25s ease;pointer-events:none;
+  opacity:0;max-width:260px;line-height:1.5;box-shadow:0 4px 16px rgba(0,0,0,0.18);
 }
-.toast.show { transform:translateX(-50%) translateY(0); }
+.toast.show { transform:translateY(0);opacity:1; }
 
 /* 空状態 */
 .empty-state {
@@ -468,8 +469,8 @@ body::before {
         <span style="padding:3px 8px;border-radius:20px;background:#fffdf0;border:1px solid #e8d898;color:#c8a020;">🟡 カットのみ</span>
         <span style="padding:3px 8px;border-radius:20px;background:#fff0f0;border:1px solid #e8a0a0;color:#c05050;">🔴 満枠</span>
       </div>
-      <button onclick="syncAndRefresh()" style="margin-bottom:10px;width:100%;padding:9px;border-radius:8px;border:1.5px solid rgba(74,159,212,0.5);background:rgba(74,159,212,0.08);color:#4a9fd4;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">
-        📅 空き枠をGoogleカレンダーと同期する（手動）
+      <button id="sync-cal-btn" onclick="syncAndRefresh()" style="margin-bottom:10px;width:100%;padding:9px;border-radius:8px;border:1.5px solid rgba(139,111,71,0.35);background:rgba(139,111,71,0.06);color:var(--accent);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">
+        🔄 管理設定を再読み込みする
       </button>
       <div id="admin-cal-wrap"></div>
 
@@ -3088,7 +3089,7 @@ function makeCard(r) {
     <div class="ai-summary">${r.aiNote||''}</div>
     ${r.status==='pending' ? `
       <div class="req-actions">
-        <button class="btn-approve" onclick="approveWithDate(${r.id})">✓ 承認・カレンダー登録</button>
+        <button class="btn-approve" onclick="openApproveModal(${r.id})">✓ 承認・カレンダー登録</button>
         <button class="btn-reject" onclick="reject(${r.id})">✕ 断る</button>
       </div>` : `
       <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end;align-items:center;">
@@ -3205,78 +3206,31 @@ async function syncSettingsFromSheet(force = false) {
   }
 }
 
+// Googleカレンダー同期なし — 管理画面の手動設定のみ反映
 async function syncCalendarStatus(force = false) {
-  if (!GAS_URL || GAS_URL === 'YOUR_GAS_URL_HERE') return;
-
-  // ⭐ まずシートの手動設定（休業日・午前午後の固定）を取得
   await syncSettingsFromSheet(force);
-
-  // 5分以内のキャッシュがあればスキップ（強制フラグなし時）
-  if (!force) {
-    const lastSync = parseInt(localStorage.getItem('hs_last_sync') || '0');
-    if (Date.now() - lastSync < 5 * 60 * 1000) {
-      console.log('カレンダー同期スキップ（キャッシュ有効）');
-      return;
-    }
-  }
-
-  try {
-    // 28日分取得（カレンダー表示が4週間=28日のため）
-    const res = await fetch(`${GAS_URL}?action=getStatus&days=28`, { redirect: 'follow' });
-    const text = await res.text();
-    const json = JSON.parse(text);
-    if (json.success && json.status) {
-      if (!settings.dayStatus) settings.dayStatus = {};
-      // ⭐ Googleカレンダー由来のステータスを反映
-      //    手動設定マーカー（_manual キー）が立っている日付だけは保護
-      Object.keys(json.status).forEach(key => {
-        const dateBase = key.replace(/_am$|_pm$/, '');
-        const isManual = settings.dayStatus[dateBase + '_manual'] === true;
-        if (!isManual) {
-          settings.dayStatus[key] = json.status[key];
-        }
-      });
-      localStorage.setItem('hs_settings', JSON.stringify(settings));
-      localStorage.setItem('hs_last_sync', Date.now().toString());
-      if (typeof renderAdminCalendar === 'function') {
-        try { renderAdminCalendar(); } catch(e) {}
-      }
-      if (typeof updateAdminCalendarLastSync === 'function') {
-        try { updateAdminCalendarLastSync(); } catch(e) {}
-      }
-      if (typeof refreshCustomerCalendar === 'function') {
-        try { refreshCustomerCalendar(); } catch(e) {}
-      }
-      console.log('カレンダーステータス同期完了:', Object.keys(json.status).length + '件 反映');
-    } else {
-      console.log('同期失敗:', json);
-    }
-  } catch (e) {
-    console.log('カレンダー同期エラー:', e);
-  }
+  if (typeof renderAdminCalendar === 'function') try { renderAdminCalendar(); } catch(e) {}
+  if (typeof refreshCustomerCalendar === 'function') try { refreshCustomerCalendar(); } catch(e) {}
 }
 
 async function syncAndRefresh() {
   const btn = document.getElementById('sync-cal-btn');
-  if (btn) { btn.textContent = '⏳ 同期中...'; btn.disabled = true; }
-  await syncCalendarStatus(true);
-  refreshCustomerCalendar();
+  if (btn) { btn.textContent = '⏳ 読み込み中...'; btn.disabled = true; }
+  await syncSettingsFromSheet(true);
+  if (typeof renderAdminCalendar === 'function') try { renderAdminCalendar(); } catch(e) {}
+  if (typeof refreshCustomerCalendar === 'function') try { refreshCustomerCalendar(); } catch(e) {}
   if (btn) {
-    btn.textContent = '✅ 同期・反映完了！';
+    const now = new Date();
+    const hh = now.getHours().toString().padStart(2,'0');
+    const mm = now.getMinutes().toString().padStart(2,'0');
+    btn.textContent = `✓ 読み込み完了（${hh}:${mm}）`;
     btn.disabled = false;
-    setTimeout(() => { if(typeof updateAdminCalendarLastSync==='function') updateAdminCalendarLastSync(); }, 2000);
+    setTimeout(() => { btn.textContent = '🔄 管理設定を再読み込みする'; }, 3000);
   }
 }
 
 function updateAdminCalendarLastSync() {
-  const btn = document.getElementById('sync-cal-btn');
-  if (!btn) return;
-  const lastSync = parseInt(localStorage.getItem('hs_last_sync') || '0');
-  if (!lastSync) { btn.textContent = '📅 Googleカレンダーと同期して空き枠を更新'; return; }
-  const d = new Date(lastSync);
-  const h = d.getHours().toString().padStart(2,'0');
-  const m = d.getMinutes().toString().padStart(2,'0');
-  btn.textContent = `📅 Googleカレンダーと同期する（最終更新 ${h}:${m}）`;
+  // 廃止（Googleカレンダー同期なし）
 }
 
 function sendToGoogleCalendar(r) {
@@ -3316,6 +3270,110 @@ function toggleMenuOther(id) {
     inp.style.display = 'none';
     inp.value = '';
   }
+}
+
+// 曜日ヘルパー（openApproveModalのinline handlerから呼ばれる）
+function _getJpDay(dateStr) {
+  const days = ['日','月','火','水','木','金','土'];
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? '' : '(' + days[d.getDay()] + ')';
+}
+
+// 承認モーダルを開く
+function openApproveModal(id) {
+  const r = requests.find(x => x.id === id);
+  if (!r) return;
+  const card = document.getElementById('card-' + id);
+
+  // メニュー選択を保存
+  const menuSel = card ? card.querySelector('#menu-sel-' + id) : null;
+  const menuOther = card ? card.querySelector('#menu-other-' + id) : null;
+  if (menuSel && menuSel.value === '__other__') {
+    r.menu = (menuOther && menuOther.value.trim()) ? menuOther.value.trim() : 'その他';
+  } else if (menuSel && menuSel.value) {
+    r.menu = menuSel.value;
+  } else if (menuSel && r.cutMenu === 'メッセージ予約') {
+    r.menu = menuSel.options[0] ? menuSel.options[0].value : 'カット';
+  }
+
+  const timePrefLines = (r.timePref || r.datesStr || '').split('\n').filter(Boolean);
+  const today = new Date().toISOString().split('T')[0];
+
+  let radioHtml = '';
+  if (timePrefLines.length > 0) {
+    timePrefLines.forEach(function(line) {
+      const safeVal = line.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+      radioHtml += '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(139,111,71,0.2);cursor:pointer;margin-bottom:8px;background:#faf7f3;">' +
+        '<input type="radio" name="approve_date_' + id + '" value="' + safeVal + '" onchange="document.getElementById(\'approve-modal-custom-' + id + '\').style.display=\'none\'" style="margin-top:3px;accent-color:#8b6f47;">' +
+        '<span style="font-size:13px;color:var(--ink);line-height:1.7;">' + line + '</span>' +
+        '</label>';
+    });
+  }
+  radioHtml += '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(139,111,71,0.3);cursor:pointer;margin-bottom:8px;background:rgba(139,111,71,0.04);">' +
+    '<input type="radio" name="approve_date_' + id + '" value="__custom__" onchange="document.getElementById(\'approve-modal-custom-' + id + '\').style.display=\'block\'" style="margin-top:3px;accent-color:#8b6f47;">' +
+    '<span style="font-size:13px;color:#8b6f47;font-weight:600;">📅 別の日を提案する</span>' +
+    '</label>';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'approve-modal-' + id;
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+  overlay.innerHTML =
+    '<div style="background:white;border-radius:16px;padding:24px;max-width:420px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,0.25);max-height:85vh;overflow-y:auto;">' +
+      '<div style="font-size:15px;font-weight:700;color:#3d2c1e;margin-bottom:4px;">✓ 予約を承認する</div>' +
+      '<div style="font-size:11px;color:#888;margin-bottom:16px;">' + r.name + ' 様の希望から確定日時を選んでください</div>' +
+      '<div>' + radioHtml + '</div>' +
+      '<div id="approve-modal-custom-' + id + '" style="display:none;background:#f5f7fa;border-radius:10px;padding:14px;margin-top:4px;margin-bottom:8px;border:1px solid rgba(139,111,71,0.2);">' +
+        '<div style="font-size:12px;color:#8b6f47;font-weight:600;margin-bottom:10px;">📅 日時を指定する</div>' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+          '<input type="date" id="approve-custom-date-' + id + '" min="' + today + '"' +
+            ' style="padding:8px 10px;border:1.5px solid rgba(139,111,71,0.35);border-radius:8px;font-size:14px;font-family:\'DM Sans\',sans-serif;flex:1;min-width:140px;"' +
+            ' oninput="(function(v){var el=document.getElementById(\'approve-custom-day-' + id + '\');if(el)el.textContent=_getJpDay(v);})(this.value)">' +
+          '<span id="approve-custom-day-' + id + '" style="font-size:14px;color:#8b6f47;font-weight:700;min-width:32px;"></span>' +
+          '<input type="text" id="approve-custom-time-' + id + '" placeholder="時間 例: 14:00"' +
+            ' style="padding:8px 10px;border:1.5px solid rgba(139,111,71,0.35);border-radius:8px;font-size:14px;font-family:\'DM Sans\',sans-serif;width:120px;">' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;margin-top:12px;">' +
+        '<button onclick="document.getElementById(\'approve-modal-' + id + '\').remove();"' +
+          ' style="flex:1;padding:12px;border:1.5px solid #ccc;border-radius:10px;background:white;color:#666;font-size:13px;cursor:pointer;font-weight:600;">キャンセル</button>' +
+        '<button onclick="_confirmApproveModal(' + id + ');"' +
+          ' style="flex:2;padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,#8b6f47,#a0845c);color:white;font-size:13px;cursor:pointer;font-weight:700;">✅ この日時で確定へ</button>' +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+}
+
+// モーダルで選んだ日時を確定し、LINE確認モーダルへ渡す
+function _confirmApproveModal(id) {
+  const r = requests.find(x => x.id === id);
+  if (!r) return;
+
+  const selected = document.querySelector('input[name="approve_date_' + id + '"]:checked');
+  let resolvedDate = '';
+
+  if (selected && selected.value === '__custom__') {
+    const dateInput = document.getElementById('approve-custom-date-' + id);
+    const timeInput = document.getElementById('approve-custom-time-' + id);
+    const dateVal = dateInput ? dateInput.value : '';
+    const timeVal = timeInput ? timeInput.value.trim() : '';
+    if (!dateVal) { alert('日付を選択してください'); return; }
+    const days = ['日','月','火','水','木','金','土'];
+    const d = new Date(dateVal);
+    const jpDay = isNaN(d.getTime()) ? '' : '(' + days[d.getDay()] + ')';
+    const m = d.getMonth() + 1;
+    const day = d.getDate();
+    resolvedDate = m + '月' + day + '日' + jpDay + (timeVal ? ' ' + timeVal : '');
+  } else if (selected) {
+    resolvedDate = selected.value;
+  } else {
+    alert('日時を選択してください');
+    return;
+  }
+
+  document.getElementById('approve-modal-' + id).remove();
+  showLineConfirmModal(id, r, resolvedDate);
 }
 
 function approveWithDate(id) {
@@ -4198,10 +4256,11 @@ function showToast(text) {
 
 // ===== 初期化 =====
 window.onload = () => {
-  // ページ読み込み時：まず設定を読み込んでからカレンダーと同期
+  // ページ読み込み時：管理設定を読み込んでカレンダーに反映
   (async () => {
     await syncSettingsFromSheet(true);
-    await syncCalendarStatus(true);
+    if (typeof renderAdminCalendar === 'function') try { renderAdminCalendar(); } catch(e) {}
+    if (typeof refreshCustomerCalendar === 'function') try { refreshCustomerCalendar(); } catch(e) {}
   })();
   updateBadge();
   // 会話履歴の復元
