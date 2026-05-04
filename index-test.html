@@ -1031,7 +1031,7 @@ function showNotesFinal() {
     doneBtn.disabled = true;
     const val = textarea.value.trim();
     bk.notes = val;
-    userMsg(val || '特になし');
+   if (val) userMsg(val);
     setTimeout(() => showConfirm(), 400);
   };
 
