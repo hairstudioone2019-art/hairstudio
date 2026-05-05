@@ -394,11 +394,12 @@ body::before {
 
 /* トースト */
 .toast {
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
-  background:var(--ink);color:var(--cream);padding:12px 24px;border-radius:100px;
-  font-size:13px;z-index:999;transition:transform .3s ease;pointer-events:none;
+  position:fixed;top:12px;left:50%;transform:translateX(-50%);
+  background:none;color:var(--accent);padding:0;border-radius:0;
+  font-size:12px;font-weight:600;z-index:9999;pointer-events:none;
+  opacity:0;transition:opacity .25s ease;letter-spacing:0.02em;
 }
-.toast.show { transform:translateX(-50%) translateY(0); }
+.toast.show { opacity:1; }
 
 /* 空状態 */
 .empty-state {
