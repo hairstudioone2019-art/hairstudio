@@ -225,7 +225,8 @@ body::before {
 .d-chip {
   background:white;border:1px solid rgba(139,111,71,0.15);
   border-radius:8px;cursor:pointer;
-  transition:all .18s;min-height:44px;
+  transition:all .18s;
+  aspect-ratio:4/5;
   display:flex;flex-direction:row;overflow:hidden;
 }
 .d-chip-side { display:flex;flex-direction:column;width:6px;flex-shrink:0; }
@@ -680,7 +681,7 @@ function showNameInput(isNewCustomer) {
 
   const input = document.createElement('input');
   input.type = 'text';
-  input.placeholder = '例）山田 まる子';
+  input.placeholder = '例）西浜 一子';
   input.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:10px 14px;font-size:16px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);margin-top:10px;box-sizing:border-box;';
 
   const doneBtn = document.createElement('button');
