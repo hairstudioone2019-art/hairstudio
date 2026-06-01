@@ -1003,7 +1003,7 @@ function showHairVolumePicker() {
     b.onclick = function() {
       bk.hairVolume = v;
       userMsg('毛量：' + v);
-      setTimeout(function() { showNotesFinal(); }, 300);
+      setTimeout(function() { showConfirm(); }, 300);
     };
     bub.appendChild(b);
   });
@@ -1013,8 +1013,6 @@ function showHairVolumePicker() {
 }
 
 function showNotesFinal() {
-  // ★ 新規のお客様は、備考の前に毛量を確認
-  if (isNew && !bk.hairVolume) { showHairVolumePicker(); return; }
   step = 'notes_final';
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
@@ -2434,6 +2432,8 @@ function showKyokumoCounseling() {
 
 // ===== 確認画面 =====
 function showConfirm() {
+  // ★ 新規のお客様は、確認画面の前に毛量を確認（全メニュー共通・フローの最後）
+  if (isNew && !bk.hairVolume) { showHairVolumePicker(); return; }
   step = 'confirm';
   const dur = bk.duration || 60;
   const hours = Math.floor(dur/60);
