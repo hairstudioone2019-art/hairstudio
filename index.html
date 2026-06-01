@@ -2553,9 +2553,11 @@ async function processInput(input) {
       bk.options = [];
       setTimeout(() => showOptionPicker(), 300);
     } else if (input === 'カット＋追加メニュー') {
-      step = 'cutType';
-      msgWithBack('どなたのカットですか？', [
-        '大人', '学生（中高生）', 'キッズ（小学生以下）',
+      // 追加メニューでは「どなたのカット」は聞かず、髪の長さへ直接進む
+      bk.cutType = '';
+      step = 'hairLength';
+      msgWithBack('髪の長さをお選びください。', [
+        'ショート（肩上）', 'ミディアム（肩〜胸あたり）', 'ロング（胸より下）',
       ], 'cutMenu', 'カットメニューに戻る', () => {
         step = 'cutMenu';
         showCutMenuPicker('カットメニューをお選びください。');
