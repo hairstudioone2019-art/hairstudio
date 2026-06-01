@@ -972,7 +972,13 @@ function showCutMenuPicker(text) {
 
 // カレンダー選択後→備考へ直接
 function continueAfterCalendar() {
-  bk.hairLength = '';
+  // カット＋追加メニュー → オプション選択（パーマ/カラー等）→ カウンセリングへ
+  if (bk.cutMenu === 'カット＋追加メニュー') {
+    step = 'options';
+    setTimeout(() => showOptionPicker(), 400);
+    return;
+  }
+  // それ以外（カット / カット&シャンプー / オプションのみ）→ 備考へ
   bk.options = [];
   bk.duration = calcDuration();
   setTimeout(() => showNotesFinal(), 400);
@@ -1003,7 +1009,33 @@ function showHairVolumePicker() {
     b.onclick = function() {
       bk.hairVolume = v;
       userMsg('毛量：' + v);
-      setTimeout(function() { showConfirm(); }, 300);
+      setTimeout(function() { showNotesFinal(); }, 300);
+    };
+    bub.appendChild(b);
+  });
+  wrap.appendChild(av); wrap.appendChild(bub);
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showHairLengthPicker() {
+  step = 'hairLengthFinal';
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ai';
+  const av = document.createElement('div');
+  av.className = 'av ai'; av.innerHTML = '<img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAlgCWAAD/7gAOQWRvYmUAZAAAAAAC/+ElwEV4aWYAAE1NACoAAAAIAAYACwACAAAAJgAACGIBEgADAAAAAQABAAABMQACAAAAJgAACIgBMQ==" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+  const bub = document.createElement('div');
+  bub.className = 'bubble';
+  bub.textContent = '髪の長さをお選びください。';
+  ['ショート（肩上）', 'ミディアム（肩〜胸あたり）', 'ロング（胸より下）'].forEach(function(v) {
+    const b = document.createElement('button');
+    b.className = 'c-btn';
+    b.style.cssText = 'display:block;margin-top:8px;width:100%;padding:10px;background:rgba(139,111,71,0.12);color:var(--accent);border:1.5px solid rgba(139,111,71,0.4);border-radius:10px;font-size:14px;cursor:pointer;';
+    b.textContent = v;
+    b.onclick = function() {
+      bk.hairLength = v;
+      userMsg('髪の長さ：' + v);
+      setTimeout(function() { showNotesFinal(); }, 300);
     };
     bub.appendChild(b);
   });
@@ -1013,6 +1045,9 @@ function showHairVolumePicker() {
 }
 
 function showNotesFinal() {
+  // ★ 新規のお客様は、備考の前に「毛量 → 髪の長さ」を確認
+  if (isNew && !bk.hairVolume) { showHairVolumePicker(); return; }
+  if (isNew && !bk.hairLength) { showHairLengthPicker(); return; }
   step = 'notes_final';
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
@@ -2432,8 +2467,6 @@ function showKyokumoCounseling() {
 
 // ===== 確認画面 =====
 function showConfirm() {
-  // ★ 新規のお客様は、確認画面の前に毛量を確認（全メニュー共通・フローの最後）
-  if (isNew && !bk.hairVolume) { showHairVolumePicker(); return; }
   step = 'confirm';
   const dur = bk.duration || 60;
   const hours = Math.floor(dur/60);
