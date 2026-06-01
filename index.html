@@ -986,7 +986,35 @@ function processCutMenuChoice(menu, cutType) {
 }
 
 // ===== 最後のご要望・備考（テキストボックス） =====
+function showHairVolumePicker() {
+  step = 'hair_volume';
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ai';
+  const av = document.createElement('div');
+  av.className = 'av ai'; av.innerHTML = '<img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAlgCWAAD/7gAOQWRvYmUAZAAAAAAC/+ElwEV4aWYAAE1NACoAAAAIAAYACwACAAAAJgAACGIBEgADAAAAAQABAAABMQACAAAAJgAACIgBMQ==" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+  const bub = document.createElement('div');
+  bub.className = 'bubble';
+  bub.textContent = '毛量はどのくらいですか？';
+  ['少ない', '普通', '多い'].forEach(function(v) {
+    const b = document.createElement('button');
+    b.className = 'c-btn';
+    b.style.cssText = 'display:block;margin-top:8px;width:100%;padding:10px;background:rgba(139,111,71,0.12);color:var(--accent);border:1.5px solid rgba(139,111,71,0.4);border-radius:10px;font-size:14px;cursor:pointer;';
+    b.textContent = v;
+    b.onclick = function() {
+      bk.hairVolume = v;
+      userMsg('毛量：' + v);
+      setTimeout(function() { showNotesFinal(); }, 300);
+    };
+    bub.appendChild(b);
+  });
+  wrap.appendChild(av); wrap.appendChild(bub);
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+}
+
 function showNotesFinal() {
+  // ★ 新規のお客様は、備考の前に毛量を確認
+  if (isNew && !bk.hairVolume) { showHairVolumePicker(); return; }
   step = 'notes_final';
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
@@ -2424,6 +2452,7 @@ function showConfirm() {
     <div class="c-row"><span class="c-label">種別</span><span class="c-val">${isNew?'新規':'ご来店歴あり'}</span></div>
     <div class="c-row"><span class="c-label">カットメニュー</span><span class="c-val">${bk.cutMenu||'なし'} ${bk.cutType?'/ '+bk.cutType:''}</span></div>
     <div class="c-row"><span class="c-label">髪の長さ</span><span class="c-val">${bk.hairLength}</span></div>
+    ${bk.hairVolume?`<div class="c-row"><span class="c-label">毛量</span><span class="c-val">${bk.hairVolume}</span></div>`:''}
     <div class="c-row"><span class="c-label">オプション</span><span class="c-val">${optText}</span></div>
     <div class="c-row" style="flex-direction:column;align-items:flex-start;gap:4px;">
       <span class="c-label">希望日時</span>
@@ -2456,6 +2485,13 @@ async function submitBooking() {
     createdAt: new Date().toLocaleString('ja-JP'),
     aiNote: `${isNew?'新規':'ご来店歴あり'}客。カット：${bk.cutMenu||'なし'}${bk.cutType?' ('+bk.cutType+')':''}、オプション：${optText}、髪の長さ：${bk.hairLength}。所要約${bk.duration}分。${isNew?'カウンセリング要確認。':''}`
   };
+  // ★ カウンセリング・毛量・髪の長さを備考にまとめて保存（管理画面で確認できるように）
+  var extra = [];
+  if (bk.hairLength) extra.push('髪の長さ：' + bk.hairLength);
+  if (bk.hairVolume) extra.push('毛量：' + bk.hairVolume);
+  if (bk.counseling) extra.push('カウンセリング：' + bk.counseling);
+  if (bk.notes) extra.push('備考：' + bk.notes);
+  req.notes = extra.join('\n');
   requests.push(req);
   localStorage.setItem('hs_requests', JSON.stringify(requests));
   updateBadge();
