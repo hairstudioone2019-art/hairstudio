@@ -673,7 +673,7 @@ function showNameInput(isNewCustomer) {
     : 'いつもありがとうございます！\nお名前をお教えください。';
   const input = document.createElement('input');
   input.type = 'text';
-  input.placeholder = '例）西浜 一子';
+  input.placeholder = '例）山田 まる子';
   input.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:10px 14px;font-size:16px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);margin-top:10px;box-sizing:border-box;';
   const doneBtn = document.createElement('button');
   doneBtn.className = 'c-btn';
@@ -2540,16 +2540,43 @@ function choose(val) {
   setTimeout(() => processInput(val), 300);
 }
 
+// ★ LINE IDから過去の予約履歴があるか確認（あれば常連）
+async function checkHasHistory(userId) {
+  if (!userId || !GAS_URL) return false;
+  try {
+    const res = await fetch(`${GAS_URL}?action=getBookings`);
+    const json = await res.json();
+    if (json && json.success && Array.isArray(json.bookings)) {
+      return json.bookings.some(function(b) { return b.lineUserId && String(b.lineUserId) === String(userId); });
+    }
+  } catch (e) {}
+  return false;
+}
+
+// ★ 予約スタート（新規/常連は LINE IDの履歴で自動判定）
+async function startBooking() {
+  // LINEプロフィール取得を待つ（Android対策）
+  if (!lineProfile && typeof liff !== 'undefined') {
+    try {
+      if (typeof liff.ready !== 'undefined') { await liff.ready; }
+      for (var _t = 0; _t < 8 && !lineProfile; _t++) {
+        if (liff.isLoggedIn && liff.isLoggedIn()) { try { lineProfile = await liff.getProfile(); } catch (e) {} }
+        if (lineProfile) break;
+        await new Promise(r => setTimeout(r, 400));
+      }
+    } catch (e) {}
+  }
+  var hasHistory = false;
+  if (lineProfile && lineProfile.userId) { hasHistory = await checkHasHistory(lineProfile.userId); }
+  isNew = !hasHistory;
+  step = 'name';
+  setTimeout(() => showNameInput(isNew), 300);
+}
+
 async function processInput(input) {
-  // 最初からやり直す
-  if (input === 'restart') {
-    localStorage.removeItem('hs_chat_history');
-    chat.innerHTML = '';
-    step = 'type';
-    msg('ai', 'HairStudio ONEへようこそ。\nAI予約アシスタントが担当いたします。\n\n本日はご新規様ですか？', [
-      { label: '新規', value: '新規' },
-      { label: 'ご来店歴のあるお客様', value: '常連' }
-    ]);
+  // 予約スタート（新規/常連は自動判定）
+  if (input === 'start') {
+    startBooking();
     return;
   }
 
@@ -2588,6 +2615,11 @@ async function processInput(input) {
       showLineRequiredNotice();
       return;
     }
+    // ★ LINE IDが確定したこの時点で、過去予約の有無から新規/常連を判定
+    try {
+      var _hist = await checkHasHistory(bk.lineUserId);
+      isNew = !_hist;
+    } catch (e) {}
     // 名前確認後に予約方法を選択
     setTimeout(() => showUsageGuide(isNew), 300);
 
@@ -4390,21 +4422,17 @@ window.onload = () => {
       chat.appendChild(el);
     });
     chat.scrollTop = chat.scrollHeight;
-    // 続きから再開
-    step = 'type';
+    // 続きから再開（最初に戻るはなし。予約スタートで自動判定）
     setTimeout(() => {
-      msg('ai', 'おかえりなさい😊\n前回の続きです。ご予約はこちらからどうぞ。', [
-        { label: '予約する', value: '新規' },
-        { label: '最初からやり直す', value: 'restart' }
+      msg('ai', 'おかえりなさい😊\nご予約はこちらからどうぞ。', [
+        { label: '予約する', value: 'start' }
       ]);
     }, 300);
   } else {
     // 初回
     setTimeout(() => {
-      step = 'type';
-      msg('ai', 'HairStudio ONEへようこそ。\nAI予約アシスタントが担当いたします。\n\n本日はご新規様ですか？', [
-        { label: '新規', value: '新規' },
-        { label: 'ご来店歴のあるお客様', value: '常連' }
+      msg('ai', 'HairStudio ONEへようこそ。\nAI予約アシスタントが担当いたします。\n\nご予約はこちらからどうぞ。', [
+        { label: '予約する', value: 'start' }
       ]);
     }, 500);
   }
