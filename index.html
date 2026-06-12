@@ -2561,14 +2561,30 @@ async function processInput(input) {
 
   } else if (step === 'name') {
     bk.name = input;
-    if (liffReady && lineProfile) {
+    // ★ LINEプロフィール取得（Android等で初期化が遅れる場合に備えて少し待つ）
+    if (!lineProfile && typeof liff !== 'undefined') {
+      try {
+        if (typeof liff.ready !== 'undefined') { await liff.ready; }
+        for (var _t = 0; _t < 10 && !lineProfile; _t++) {
+          if (liff.isLoggedIn && liff.isLoggedIn()) {
+            try { lineProfile = await liff.getProfile(); } catch (e) {}
+          }
+          if (lineProfile) break;
+          await new Promise(r => setTimeout(r, 400));
+        }
+      } catch (e) {}
+    }
+    if (lineProfile) {
       bk.lineId = lineProfile.displayName;
       bk.lineUserId = lineProfile.userId;
     } else {
       bk.lineId = '';
     }
-    // ★ LINE IDが取得できない場合は予約を進めず案内を表示
+    // ★ LINE IDが取得できない場合：LINEアプリ内なら再ログインを促し、外部ブラウザなら案内
     if (!bk.lineUserId) {
+      if (typeof liff !== 'undefined' && liff.isInClient && liff.isInClient() && liff.login) {
+        try { liff.login(); return; } catch (e) {}
+      }
       showLineRequiredNotice();
       return;
     }
