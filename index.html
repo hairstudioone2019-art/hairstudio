@@ -2558,26 +2558,40 @@ async function checkHasHistory(userId) {
 }
 
 // ★ 予約スタート（新規/常連は LINE IDの履歴で自動判定）
-async function startBooking() {
-  // ★ LINE初期化の完了を待つ（Android対策）
-  toast('読み込み中...');
-  try { if (typeof liffInitPromise !== 'undefined') { await liffInitPromise; } } catch (e) {}
-  // LINEプロフィール取得を待つ（初期化が遅れる端末向けに粘る）
-  if (!lineProfile && typeof liff !== 'undefined') {
-    try {
-      if (typeof liff.ready !== 'undefined') { await liff.ready; }
-      for (var _t = 0; _t < 12 && !lineProfile; _t++) {
+function startBooking() {
+  // 何があっても必ず予約フォームに進む（固まり防止）
+  try { toast('読み込み中...'); } catch (e) {}
+  startBookingCore();
+}
+async function startBookingCore() {
+  var done = false;
+  // 最大4秒で必ず先へ進む保険
+  var proceed = function() {
+    if (done) return;
+    done = true;
+    var hasHistoryThen = function(hist) {
+      isNew = !hist;
+      step = 'name';
+      setTimeout(function() { showNameInput(isNew); }, 200);
+    };
+    if (lineProfile && lineProfile.userId) {
+      checkHasHistory(lineProfile.userId).then(hasHistoryThen).catch(function(){ hasHistoryThen(false); });
+    } else {
+      hasHistoryThen(false);
+    }
+  };
+  setTimeout(proceed, 4000); // タイムアウト保険
+  try {
+    if (typeof liffInitPromise !== 'undefined') { await liffInitPromise; }
+    if (!lineProfile && typeof liff !== 'undefined') {
+      for (var _t = 0; _t < 8 && !lineProfile; _t++) {
         if (liff.isLoggedIn && liff.isLoggedIn()) { try { lineProfile = await liff.getProfile(); } catch (e) {} }
         if (lineProfile) break;
-        await new Promise(r => setTimeout(r, 400));
+        await new Promise(function(r){ setTimeout(r, 300); });
       }
-    } catch (e) {}
-  }
-  var hasHistory = false;
-  if (lineProfile && lineProfile.userId) { hasHistory = await checkHasHistory(lineProfile.userId); }
-  isNew = !hasHistory;
-  step = 'name';
-  setTimeout(() => showNameInput(isNew), 300);
+    }
+  } catch (e) {}
+  proceed();
 }
 
 async function processInput(input) {
