@@ -677,7 +677,7 @@ function showNameInput(isNewCustomer) {
     : 'いつもありがとうございます！\nお名前をお教えください。';
   const input = document.createElement('input');
   input.type = 'text';
-  input.placeholder = '例）和歌山　市子';
+  input.placeholder = '例）山田 まる子';
   input.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:10px 14px;font-size:16px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);margin-top:10px;box-sizing:border-box;';
   const doneBtn = document.createElement('button');
   doneBtn.className = 'c-btn';
@@ -1935,16 +1935,35 @@ doneBtn.style.cssText = 'margin-top:10px;width:100%;padding:10px;background:rgba
   function updateButtonStates() {
     const hasKyokumo = selectedOptions.includes('縮毛矯正');
     const hasPermaOrColor = selectedOptions.includes('パーマ') || selectedOptions.includes('カラー');
-    ['パーマ','カラー'].forEach(o => {
-      if (btnMap[o]) {
-        btnMap[o].disabled = hasKyokumo;
-        btnMap[o].style.opacity = hasKyokumo ? '0.3' : '1';
+    opts.forEach(o => {
+      const b = btnMap[o];
+      if (!b) return;
+      // 縮毛矯正との同時選択を制御
+      let disabled = false;
+      if (o === 'パーマ' || o === 'カラー') disabled = hasKyokumo;
+      if (o === '縮毛矯正') disabled = hasPermaOrColor;
+      b.disabled = disabled;
+      const selected = selectedOptions.includes(o);
+      if (disabled) {
+        // 選べないボタン：薄くグレー
+        b.style.opacity = '0.35';
+        b.style.background = '';
+        b.style.color = '';
+        b.style.fontWeight = '';
+      } else if (selected) {
+        // 選択中：はっきり色をつける
+        b.style.opacity = '1';
+        b.style.background = 'var(--accent)';
+        b.style.color = '#fff';
+        b.style.fontWeight = '700';
+      } else {
+        // 未選択：通常
+        b.style.opacity = '1';
+        b.style.background = '';
+        b.style.color = '';
+        b.style.fontWeight = '';
       }
     });
-    if (btnMap['縮毛矯正']) {
-      btnMap['縮毛矯正'].disabled = hasPermaOrColor;
-      btnMap['縮毛矯正'].style.opacity = hasPermaOrColor ? '0.3' : '1';
-    }
   }
 
   opts.forEach(opt => {
@@ -1953,15 +1972,12 @@ doneBtn.style.cssText = 'margin-top:10px;width:100%;padding:10px;background:rgba
     btn.textContent = opt;
     btnMap[opt] = btn;
     btn.onclick = () => {
+      if (btn.disabled) return;
       const idx = selectedOptions.indexOf(opt);
       if (idx >= 0) {
         selectedOptions.splice(idx, 1);
-        btn.style.background = '';
-        btn.style.color = '';
       } else {
         selectedOptions.push(opt);
-        btn.style.background = 'var(--accent)';
-        btn.style.color = 'white';
       }
       updateButtonStates();
       doneBtn.style.display = 'inline-block';
