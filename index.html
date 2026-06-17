@@ -3333,51 +3333,11 @@ async function syncSettingsFromSheet(force = false) {
 async function syncCalendarStatus(force = false) {
   if (!GAS_URL || GAS_URL === 'YOUR_GAS_URL_HERE') return;
 
-  // ⭐ まずシートの手動設定（休業日・午前午後の固定）を取得
+  // ⭐ 手動運用：シートの手動設定（休業日・午前午後の空き状況）だけを取得する
+  //    Googleカレンダーとの同期は行わない
   await syncSettingsFromSheet(force);
-
-  // 5分以内のキャッシュがあればスキップ（強制フラグなし時）
-  if (!force) {
-    const lastSync = parseInt(localStorage.getItem('hs_last_sync') || '0');
-    if (Date.now() - lastSync < 5 * 60 * 1000) {
-      console.log('カレンダー同期スキップ（キャッシュ有効）');
-      return;
-    }
-  }
-
-  try {
-    // 28日分取得（カレンダー表示が4週間=28日のため）
-    const res = await fetch(`${GAS_URL}?action=getStatus&days=28`, { redirect: 'follow' });
-    const text = await res.text();
-    const json = JSON.parse(text);
-    if (json.success && json.status) {
-      if (!settings.dayStatus) settings.dayStatus = {};
-      // ⭐ Googleカレンダー由来のステータスを反映
-      //    手動設定マーカー（_manual キー）が立っている日付だけは保護
-      Object.keys(json.status).forEach(key => {
-        const dateBase = key.replace(/_am$|_pm$/, '');
-        const isManual = settings.dayStatus[dateBase + '_manual'] === true;
-        if (!isManual) {
-          settings.dayStatus[key] = json.status[key];
-        }
-      });
-      localStorage.setItem('hs_settings', JSON.stringify(settings));
-      localStorage.setItem('hs_last_sync', Date.now().toString());
-      if (typeof renderAdminCalendar === 'function') {
-        try { renderAdminCalendar(); } catch(e) {}
-      }
-      if (typeof updateAdminCalendarLastSync === 'function') {
-        try { updateAdminCalendarLastSync(); } catch(e) {}
-      }
-      if (typeof refreshCustomerCalendar === 'function') {
-        try { refreshCustomerCalendar(); } catch(e) {}
-      }
-      console.log('カレンダーステータス同期完了:', Object.keys(json.status).length + '件 反映');
-    } else {
-      console.log('同期失敗:', json);
-    }
-  } catch (e) {
-    console.log('カレンダー同期エラー:', e);
+  if (typeof refreshCustomerCalendar === 'function') {
+    try { refreshCustomerCalendar(); } catch(e) {}
   }
 }
 
