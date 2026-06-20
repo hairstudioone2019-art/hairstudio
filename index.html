@@ -1471,8 +1471,16 @@ function showDatePicker() {
       const sunCls = dow === 0 ? ' sun' : dow === 6 ? ' sat' : '';
 
       if (!dObj) {
+        const outLabel = `${month+1}/${day}`;
+        const outDate = new Date(year, month, day);
+        const todayMid = new Date(); todayMid.setHours(0,0,0,0);
+        const isFutureClosed = outDate >= todayMid && (settings.closedDates || []).includes(outLabel);
         // 月曜日は定休日として表示
         if (dow === 1) {
+          chip.className = `d-chip holiday${sunCls}`;
+          chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休日</span></div>`;
+        } else if (isFutureClosed) {
+          // 予約可能期間より先だが、臨時休業日として表示
           chip.className = `d-chip holiday${sunCls}`;
           chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休日</span></div>`;
         } else {
@@ -3004,7 +3012,11 @@ function renderAdminCalendar() {
       const isInRange = dates.some(rd => rd.getDate() === day);
       const isPast = d < new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-      if (!isInRange || isPast) {
+      if ((!isInRange || isPast) && !isPast && (settings.closedDates || []).includes(label)) {
+        // 予約可能期間より先だが、臨時休業日として表示
+        chip.className = `d-chip holiday${sunCls}`;
+        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休日</span></div>`;
+      } else if (!isInRange || isPast) {
         // 範囲外・過去
         chip.className = `d-chip disabled${sunCls}`;
         chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span></div>`;
