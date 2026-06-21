@@ -946,30 +946,19 @@ function showCutMenuPicker(text) {
     userMsg(cutType ? `${currentMenu} / ${cutType}` : currentMenu);
     bk.cutMenu = currentMenu;
     if (cutType) bk.cutType = cutType;
-    setTimeout(() => processCutMenuChoice(currentMenu, cutType), 300);
-  };
-
-  // 日程選択に戻るボタン
-  const backToDateBtn = document.createElement('button');
-  backToDateBtn.className = 'c-btn';
-  backToDateBtn.style.cssText = 'margin-top:6px;width:100%;font-size:11px;color:var(--muted);border-color:rgba(155,142,130,0.4);';
-  backToDateBtn.textContent = '← 日程選択に戻る';
-  backToDateBtn.onclick = () => {
-    choicesDiv.querySelectorAll('button').forEach(b => b.disabled = true);
-    select.disabled = true; confirmBtn.disabled = true; backToDateBtn.disabled = true;
-    userMsg('← 戻る');
-    setTimeout(() => {
-      step = 'date';
-      bk.dateTimePref = [];
-      selectedDates = [];
-      showDatePicker();
-    }, 200);
+    // ★ メニューに応じてカレンダーの空き判定を設定（カット系=1h、追加メニュー/オプション=2h）
+    if (currentMenu === 'カット' || currentMenu === 'カット&シャンプー') {
+      bk.menuDuration = '1h';
+    } else {
+      bk.menuDuration = '2h';
+    }
+    // ★ メニュー選択後 → カレンダーへ
+    setTimeout(() => showDatePicker(), 300);
   };
 
   bub.appendChild(choicesDiv);
   bub.appendChild(dropWrap);
   bub.appendChild(confirmBtn);
-  bub.appendChild(backToDateBtn);
   wrap.appendChild(av); wrap.appendChild(bub);
   chat.appendChild(wrap);
   chat.scrollTop = chat.scrollHeight;
@@ -1637,8 +1626,12 @@ function askTimeForDate(idx) {
       if (t.includes('おまかせ') && isCut(am) && isCut(pm)) return true;
       return false;
     });
-    // 日程確定後→カットメニューへ
-    showCutMenuPicker('カットメニューをお選びください。');
+    // ★ 日時確定後 → 新規/常連を聞く
+    step = 'type';
+    msg('ai', '本日はご新規様ですか？', [
+      { label: '新規', value: '新規' },
+      { label: 'ご来店歴のあるお客様', value: '常連' }
+    ]);
     return;
   }
 
@@ -2665,8 +2658,8 @@ async function processInput(input) {
       showLineRequiredNotice();
       return;
     }
-    // 名前確認後に予約方法を選択（新規/常連は最初の選択に従う）
-    setTimeout(() => showUsageGuide(isNew), 300);
+    // ★ 名前確認後 → メニュー別の詳細へ（カット＋追加メニュー＝オプション選択、その他＝備考へ）
+    setTimeout(() => continueAfterCalendar(), 300);
 
   } else if (step === 'lineId') {
     bk.lineId = input === 'なし' ? '' : input;
@@ -4433,20 +4426,14 @@ window.onload = () => {
     chat.scrollTop = chat.scrollHeight;
     // 続きから再開
     setTimeout(() => {
-      step = 'type';
-      msg('ai', 'おかえりなさい😊\n本日はご新規様ですか？', [
-        { label: '新規', value: '新規' },
-        { label: 'ご来店歴のあるお客様', value: '常連' }
-      ]);
+      msg('ai', 'おかえりなさい😊');
+      showCutMenuPicker('空席確認・ご予約はこちらから。\nまずご希望のメニューをお選びください。\n（メニューを選ぶと、ご予約可能な空き状況がカレンダーで確認できます）');
     }, 300);
   } else {
     // 初回
     setTimeout(() => {
-      step = 'type';
-      msg('ai', 'HairStudio ONEへようこそ。\nAI予約アシスタントが担当いたします。\n\n本日はご新規様ですか？', [
-        { label: '新規', value: '新規' },
-        { label: 'ご来店歴のあるお客様', value: '常連' }
-      ]);
+      msg('ai', 'HairStudio ONEへようこそ。\nAI予約アシスタントが担当いたします。');
+      showCutMenuPicker('空席確認・ご予約はこちらから。\nまずご希望のメニューをお選びください。\n（メニューを選ぶと、ご予約可能な空き状況がカレンダーで確認できます）');
     }, 500);
   }
 };
