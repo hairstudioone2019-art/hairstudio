@@ -394,9 +394,10 @@ body::before {
 
 /* トースト */
 .toast {
-  position:fixed;top:12px;left:50%;transform:translateX(-50%);
-  background:none;color:var(--accent);padding:0;border-radius:0;
-  font-size:12px;font-weight:600;z-index:9999;pointer-events:none;
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:rgba(42,32,24,0.92);color:#fff;padding:9px 18px;border-radius:22px;
+  font-size:12px;font-weight:600;z-index:9999;pointer-events:none;max-width:88%;text-align:center;
+  box-shadow:0 4px 16px rgba(0,0,0,0.2);
   opacity:0;transition:opacity .25s ease;letter-spacing:0.02em;
 }
 .toast.show { opacity:1; }
@@ -915,7 +916,7 @@ function showCutMenuPicker(text) {
       btn.style.cursor = 'default';
       btn.style.fontSize = '11px';
     } else {
-      btn.textContent = menu;
+      btn.textContent = menu === 'カット＋追加メニュー' ? 'カット＋追加メニュー（パーマ・カラーなど）' : menu;
       btn.onclick = () => {
         choicesDiv.querySelectorAll('.c-btn').forEach(b => { b.style.background=''; b.style.color=''; });
         btn.style.background = 'var(--accent)'; btn.style.color = 'white';
