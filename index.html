@@ -1498,15 +1498,19 @@ function showDatePicker() {
         };
         let amBookable = slotOk(amSt);
         let pmBookable = slotOk(pmSt);
-        if (avail === 'full') { amBookable = false; pmBookable = false; }
         const slotCount = (amBookable ? 1 : 0) + (pmBookable ? 1 : 0);
         const isSelectable = slotCount > 0;
         const isCutOnlyDay = false; // 顧客には色の区別を見せない（青/薄青のみ）
-        // 空き2枠＝濃ブルー、空き1枠＝薄ブルー
-        const dayColor = slotCount >= 2 ? 'side-ok' : 'side-ok-dim';
+        // ★ 午前・午後それぞれの空き状況で色分け（予約可＝ブルー/薄ブルー、不可＝グレー）
+        const slotColor = (bookable, st) => {
+          if (!bookable) return 'side-off';        // グレー（予約不可）
+          return st === 'ok-dim' ? 'side-ok-dim' : 'side-ok'; // 残りわずか＝薄ブルー、空き＝ブルー
+        };
+        const amColor = slotColor(amBookable, amSt);
+        const pmColor = slotColor(pmBookable, pmSt);
         chip.className = `d-chip${sunCls}${!isSelectable ? ' menu-blocked' : ''}`;
         chip.dataset.label = dObj.label;
-        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top ${dayColor}"></div><div class="d-chip-side-bot ${dayColor}"></div></div><div class="d-chip-body"><span class="d-num">${day}</span></div>`;
+        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top ${amColor}"></div><div class="d-chip-side-bot ${pmColor}"></div></div><div class="d-chip-body"><span class="d-num">${day}</span></div>`;
         if (isSelectable) {
           chip.onclick = () => {
             const idx = selectedDates.findIndex(x => x.label === dObj.label);
