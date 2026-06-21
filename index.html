@@ -241,9 +241,10 @@ body::before {
 .d-name { font-size:9px;color:var(--muted);display:block;margin-top:2px;line-height:1.2; }
 .d-chip.sun .d-num { color:#c0695a; }
 .d-chip.sat .d-num { color:#5a7ac0; }
-.d-chip.full { border-color:#e8a0a0;cursor:default;pointer-events:none;background:#fff0f0; }
-.d-chip.full .d-num { color:#c05050; }
-.d-chip.full .d-name { color:#c05050; }
+.d-chip.full { border-color:#d8d4d0;cursor:default;pointer-events:none;background:#ededeb;opacity:.7; }
+.d-chip.full .d-num { color:#9a948c; }
+.d-chip.full .d-name { color:#9a948c;font-weight:600; }
+.d-chip.full .d-chip-side-top,.d-chip.full .d-chip-side-bot { background:#cfcbc5; }
 .d-chip.holiday { background:#f5f3f0;cursor:default;pointer-events:none; }
 .d-chip.holiday .d-num { color:#c8c0b8; }
 .d-chip.holiday .d-name { color:#c8c0b8; }
@@ -1379,8 +1380,12 @@ function showDatePicker() {
         <span style="font-size:12px;color:var(--ink);"><strong>薄黄</strong>＝カット残りわずか</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#e03030;flex-shrink:0;"></span>
-        <span style="font-size:12px;color:var(--ink);"><strong>赤</strong>＝埋まってます</span>
+        <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#cfcbc5;flex-shrink:0;"></span>
+        <span style="font-size:12px;color:var(--ink);"><strong>グレー（満枠）</strong>＝埋まってます</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#f5f3f0;border:1px solid #d8d4d0;flex-shrink:0;"></span>
+        <span style="font-size:12px;color:var(--ink);"><strong>グレー（定休日）</strong>＝お休みです</span>
       </div>
     </div>
     <div style="padding:6px 8px;background:rgba(139,111,71,0.06);border-radius:8px;font-size:11px;color:var(--muted);line-height:1.8;">
