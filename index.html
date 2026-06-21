@@ -1383,28 +1383,8 @@ function showDatePicker() {
   warnBox.style.cssText = 'display:none;margin-bottom:6px;border-radius:8px;padding:7px 10px;font-size:10px;line-height:1.6;';
 
   function updateWarnBox() {
-    const hasCutOnly = selectedDates.some(d => d.cutOnly);
-    const hasBlue = selectedDates.some(d => !d.cutOnly);
-    if (selectedDates.length === 0) {
-      warnBox.style.display = 'none';
-      return;
-    }
-    if (hasCutOnly && hasBlue) {
-      warnBox.style.display = 'block';
-      warnBox.style.background = '#fffbe8';
-      warnBox.style.border = '1px solid #f5aa00';
-      warnBox.innerHTML = `<span style="font-weight:500;color:#c47800;">⚠️ ご注意 </span><span style="color:#7a5a00;">🟡の日時はカットのみです。パーマ・カラーをご希望の場合は🔵の日程をお選びください。</span>`;
-    } else if (hasCutOnly && !hasBlue) {
-      warnBox.style.display = 'block';
-      warnBox.style.background = '#fffbe8';
-      warnBox.style.border = '1px solid #f5aa00';
-      warnBox.innerHTML = `<span style="font-weight:500;color:#c47800;">⚠️ カットのみの日程です </span><span style="color:#7a5a00;">パーマ・カラーをご希望の場合は🔵の日程をお選びください。</span>`;
-    } else {
-      warnBox.style.display = 'block';
-      warnBox.style.background = '#f0f8f4';
-      warnBox.style.border = '1px solid #7abf9e';
-      warnBox.innerHTML = `<span style="color:#2a7a50;">✅ カット・パーマ・カラーすべてご予約いただけます。</span>`;
-    }
+    // メニューを先に選ぶフローのため、案内ボックスは表示しない
+    warnBox.style.display = 'none';
   }
 
   // 日付を月ごとにグループ化
