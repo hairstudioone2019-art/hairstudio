@@ -966,13 +966,13 @@ function showCutMenuPicker(text) {
 
 // カレンダー選択後→備考へ直接
 function continueAfterCalendar() {
-  // カット＋追加メニュー → オプション選択（パーマ/カラー等）→ カウンセリングへ
-  if (bk.cutMenu === 'カット＋追加メニュー') {
+  // カット＋追加メニュー・オプションのみ → オプション選択（パーマ/カラー等）→ カウンセリングへ
+  if (bk.cutMenu === 'カット＋追加メニュー' || bk.cutMenu === 'カット無し（オプションのみ）') {
     step = 'options';
     setTimeout(() => showOptionPicker(), 400);
     return;
   }
-  // それ以外（カット / カット&シャンプー / オプションのみ）→ 備考へ
+  // それ以外（カット / カット&シャンプー）→ 備考へ
   bk.options = [];
   bk.duration = calcDuration();
   setTimeout(() => showNotesFinal(), 400);
