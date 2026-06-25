@@ -2629,15 +2629,8 @@ async function processInput(input) {
     } else {
       bk.lineId = '';
     }
-    // ★ LINE IDが取得できない場合：LINEアプリ内なら再ログインを促し、外部ブラウザなら案内
-    if (!bk.lineUserId) {
-      if (typeof liff !== 'undefined' && liff.isInClient && liff.isInClient() && liff.login) {
-        try { liff.login(); return; } catch (e) {}
-      }
-      showLineRequiredNotice();
-      return;
-    }
-    // ★ 名前確認後 → メニュー別の詳細へ（カット＋追加メニュー＝オプション選択、その他＝備考へ）
+    // ★ LINE IDが取れなくてもフリーズさせず、予約は続行する（IDが無い方は後で手動対応）
+    //   再ログイン（liff.login）は端末によってフリーズの原因になるため呼ばない
     setTimeout(() => continueAfterCalendar(), 300);
 
   } else if (step === 'lineId') {
