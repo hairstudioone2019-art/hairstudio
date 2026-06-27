@@ -1483,7 +1483,10 @@ function showDatePicker() {
         // ★ 午前・午後それぞれの空き状況で色分け（予約可＝ブルー/薄ブルー、不可＝グレー）
         const slotColor = (bookable, st) => {
           if (!bookable) return 'side-off';        // グレー（予約不可）
-          return st === 'ok-dim' ? 'side-ok-dim' : 'side-ok'; // 残りわずか＝薄ブルー、空き＝ブルー
+          // カット(1h)は「カット残りわずか(cut-dim)」を薄ブルー、それ以外は濃ブルー
+          // その他(2h以上)は「残りわずか(ok-dim)」を薄ブルー、それ以外は濃ブルー
+          if (dur === '1h') return st === 'cut-dim' ? 'side-ok-dim' : 'side-ok';
+          return st === 'ok-dim' ? 'side-ok-dim' : 'side-ok';
         };
         const amColor = slotColor(amBookable, amSt);
         const pmColor = slotColor(pmBookable, pmSt);
