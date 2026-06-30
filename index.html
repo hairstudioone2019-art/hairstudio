@@ -2538,7 +2538,7 @@ async function submitBooking() {
   updateBadge();
   // スプレッドシート保存（saveBooking内で管理者へのLINE通知も送られるため、sendLineNotifyは呼ばない＝通知の二重送信を防止）
   saveBookingToSpreadsheet(req);
-  msg('ai', `ご予約申請を受け付けました。\n\n💇 メニュー：${bk.cutMenu || 'なし'}${optText !== 'なし' ? '＋' + optText : ''}\n📅 希望日時：${bk.timePref || bk.datesStr || '未設定'}\n\n確認にお時間をいただく場合がございますが、もうしばらくお待ちください。\nよろしくお願いいたします。`);
+  msg('ai', `ご予約申請を受け付けました😊\n\n確認にお時間をいただく場合がございますが、もうしばらくお待ちください。\nよろしくお願いいたします。`);
   step = 'done';
 }
 
