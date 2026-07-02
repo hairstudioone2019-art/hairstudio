@@ -4382,39 +4382,12 @@ window.onload = () => {
     await syncCalendarStatus(true);
   })();
   updateBadge();
-  // 会話履歴の復元
-  const history = JSON.parse(localStorage.getItem('hs_chat_history') || '[]');
-  if (history.length > 0) {
-    // 前回の会話を復元表示
-    history.forEach(h => {
-      const el = document.createElement('div');
-      el.className = `msg ${h.role}`;
-      const av = document.createElement('div');
-      av.className = `av ${h.role}`;
-      if (h.role === 'ai') {
-        av.innerHTML = '<span style="font-size:10px;font-weight:bold;color:var(--accent)">ONE</span>';
-      } else {
-        av.innerHTML = `<svg viewBox="0 0 32 32" width="22" height="22" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="10" r="6" fill="var(--accent)"/><path d="M4 28c0-6.627 5.373-12 12-12s12 5.373 12 12" fill="var(--accent)"/></svg>`;
-      }
-      const bub = document.createElement('div');
-      bub.className = 'bubble';
-      bub.textContent = h.text;
-      el.appendChild(av); el.appendChild(bub);
-      chat.appendChild(el);
-    });
-    chat.scrollTop = chat.scrollHeight;
-    // 続きから再開
-    setTimeout(() => {
-      msg('ai', greetWord() + '😊');
-      showCutMenuPicker('空席確認・ご予約はこちらから。\nまずご希望のメニューをお選びください。\n（メニューを選ぶと、ご予約可能な空き状況がカレンダーで確認できます）');
-    }, 300);
-  } else {
-    // 初回
-    setTimeout(() => {
-      msg('ai', greetWord() + '😊\nHairStudio ONE予約アシスタントです。');
-      showCutMenuPicker('空席確認・ご予約はこちらから。\nまずご希望のメニューをお選びください。\n（メニューを選ぶと、ご予約可能な空き状況がカレンダーで確認できます）');
-    }, 500);
-  }
+  // ⭐ 毎回フル版のあいさつで開始（前回の会話は復元しない・毎回リセット）
+  localStorage.removeItem('hs_chat_history');
+  setTimeout(() => {
+    msg('ai', greetWord() + '😊\nHairStudio ONE予約アシスタントです。');
+    showCutMenuPicker('空席確認・ご予約はこちらから。\nまずご希望のメニューをお選びください。\n（メニューを選ぶと、ご予約可能な空き状況がカレンダーで確認できます）');
+  }, 500);
 };
 
 // 時間帯であいさつを切り替え
