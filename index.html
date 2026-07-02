@@ -2613,17 +2613,21 @@ async function processInput(input) {
 
   } else if (step === 'name') {
     bk.name = input;
-    // ★ LINEプロフィール取得（Android等で初期化が遅れる場合に備えて少し待つ）
+    // ★ LINEプロフィールは初期化時に取得済みならそれを使う。
+    //   未取得なら「最大2秒だけ」試し、取れなくても必ず先へ進む（フリーズ防止）。
+    //   ※ liff.ready を無条件でawaitすると端末により永久に固まるため使わない。
     if (!lineProfile && typeof liff !== 'undefined') {
       try {
-        if (typeof liff.ready !== 'undefined') { await liff.ready; }
-        for (var _t = 0; _t < 10 && !lineProfile; _t++) {
-          if (liff.isLoggedIn && liff.isLoggedIn()) {
-            try { lineProfile = await liff.getProfile(); } catch (e) {}
-          }
-          if (lineProfile) break;
-          await new Promise(r => setTimeout(r, 400));
-        }
+        await Promise.race([
+          (async () => {
+            try {
+              if (liff.isLoggedIn && liff.isLoggedIn()) {
+                lineProfile = await liff.getProfile();
+              }
+            } catch (e) {}
+          })(),
+          new Promise(r => setTimeout(r, 2000)) // 2秒で必ず抜ける
+        ]);
       } catch (e) {}
     }
     if (lineProfile) {
