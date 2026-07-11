@@ -1490,9 +1490,9 @@ function showDatePicker() {
         };
         const amColor = slotColor(amBookable, amSt);
         const pmColor = slotColor(pmBookable, pmSt);
-        chip.className = `d-chip${sunCls}${!isSelectable ? ' menu-blocked' : ''}`;
+        chip.className = `d-chip${sunCls}${!isSelectable ? ' full' : ''}`;
         chip.dataset.label = dObj.label;
-        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top ${amColor}"></div><div class="d-chip-side-bot ${pmColor}"></div></div><div class="d-chip-body"><span class="d-num">${day}</span></div>`;
+        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top ${amColor}"></div><div class="d-chip-side-bot ${pmColor}"></div></div><div class="d-chip-body"><span class="d-num">${day}</span>${!isSelectable ? '<span class="d-name">満枠</span>' : ''}</div>`;
         if (isSelectable) {
           chip.onclick = () => {
             const idx = selectedDates.findIndex(x => x.label === dObj.label);
