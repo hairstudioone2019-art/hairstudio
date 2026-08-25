@@ -2627,16 +2627,23 @@ async function processInput(input) {
   } else if (step === 'name') {
     bk.name = input;
     // ★ LINEプロフィール取得（Android等で初期化が遅れる場合に備えて少し待つ）
+    // ★ 古い端末で固まらないよう、待ち時間に必ず上限をつける
+    //   ここで取れなくても、送信直前にもう一度取り直すので問題ありません
     if (!lineProfile && typeof liff !== 'undefined') {
       try {
-        if (typeof liff.ready !== 'undefined') { await liff.ready; }
-        for (var _t = 0; _t < 10 && !lineProfile; _t++) {
-          if (liff.isLoggedIn && liff.isLoggedIn()) {
-            try { lineProfile = await liff.getProfile(); } catch (e) {}
-          }
-          if (lineProfile) break;
-          await new Promise(r => setTimeout(r, 400));
-        }
+        await Promise.race([
+          (async function () {
+            try { if (typeof liff.ready !== 'undefined') { await liff.ready; } } catch (e) {}
+            for (var _t = 0; _t < 3 && !lineProfile; _t++) {
+              try {
+                if (liff.isLoggedIn && liff.isLoggedIn()) { lineProfile = await liff.getProfile(); }
+              } catch (e) {}
+              if (lineProfile) break;
+              await new Promise(function (r) { setTimeout(r, 300); });
+            }
+          })(),
+          new Promise(function (r) { setTimeout(r, 1200); }) // 最大1.2秒で必ず次へ進む
+        ]);
       } catch (e) {}
     }
     if (lineProfile) {
@@ -4391,39 +4398,13 @@ window.onload = () => {
     await syncCalendarStatus(true);
   })();
   updateBadge();
-  // 会話履歴の復元
-  const history = JSON.parse(localStorage.getItem('hs_chat_history') || '[]');
-  if (history.length > 0) {
-    // 前回の会話を復元表示
-    history.forEach(h => {
-      const el = document.createElement('div');
-      el.className = `msg ${h.role}`;
-      const av = document.createElement('div');
-      av.className = `av ${h.role}`;
-      if (h.role === 'ai') {
-        av.innerHTML = '<span style="font-size:10px;font-weight:bold;color:var(--accent)">ONE</span>';
-      } else {
-        av.innerHTML = `<svg viewBox="0 0 32 32" width="22" height="22" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="10" r="6" fill="var(--accent)"/><path d="M4 28c0-6.627 5.373-12 12-12s12 5.373 12 12" fill="var(--accent)"/></svg>`;
-      }
-      const bub = document.createElement('div');
-      bub.className = 'bubble';
-      bub.textContent = h.text;
-      el.appendChild(av); el.appendChild(bub);
-      chat.appendChild(el);
-    });
-    chat.scrollTop = chat.scrollHeight;
-    // 続きから再開
-    setTimeout(() => {
-      msg('ai', greetWord() + '😊');
-      showCutMenuPicker('空席確認・ご予約はこちらから。\nまずご希望のメニューをお選びください。\n（メニューを選ぶと、ご予約可能な空き状況がカレンダーで確認できます）');
-    }, 300);
-  } else {
-    // 初回
-    setTimeout(() => {
-      msg('ai', greetWord() + '😊\nHairStudio ONE予約アシスタントです。');
-      showCutMenuPicker('空席確認・ご予約はこちらから。\nまずご希望のメニューをお選びください。\n（メニューを選ぶと、ご予約可能な空き状況がカレンダーで確認できます）');
-    }, 500);
-  }
+  // ★ 開くたびに必ず最初から。前回の会話は残さない
+  try { localStorage.removeItem('hs_chat_history'); } catch (e) {}
+  try { if (chat) chat.innerHTML = ''; } catch (e) {}
+  setTimeout(() => {
+    msg('ai', greetWord() + '😊\nHairStudio ONE予約アシスタントです。');
+    showCutMenuPicker('空席確認・ご予約はこちらから。\nまずご希望のメニューをお選びください。\n（メニューを選ぶと、ご予約可能な空き状況がカレンダーで確認できます）');
+  }, 500);
 };
 
 // 時間帯であいさつを切り替え
