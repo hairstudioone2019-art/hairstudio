@@ -2,12 +2,15 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>HairStudio ONE｜予約システム</title>
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://static.line-scdn.net">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://script.google.com">
+<!-- ★ フォントは表示をさまたげないよう後から読み込む（古い端末対策） -->
+<link rel="stylesheet" media="print" onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500&family=DM+Sans:wght@400;500&display=swap">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500&family=DM+Sans:wght@400;500&display=swap"></noscript>
 <script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
 <style>
 :root {
@@ -440,7 +443,7 @@ body::before {
   <div class="brand">
     <img src="logo.jpg" alt="Hair Studio ONE" style="height:38px;width:auto;object-fit:contain;">
   </div>
-  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f2.0</span>
+  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f2.1</span>
   <button class="tab-btn" onclick="showTab('admin')" id="admin-tab" style="display:none">
     管理画面<span class="badge" id="pending-badge" style="display:none">0</span>
   </button>
@@ -4424,21 +4427,31 @@ function showToast(text) {
 }
 
 // ===== 初期化 =====
-window.onload = () => {
-  // ページ読み込み時：まず設定を読み込んでからカレンダーと同期
-  (async () => {
-    await syncSettingsFromSheet(true);
-    await syncCalendarStatus(true);
-  })();
-  updateBadge();
-  // ★ 開くたびに必ず最初から。前回の会話は残さない
+// ★ 表示を最優先。画像やフォントの読み込み完了を待たずに画面を出す（古い端末対策）
+function bootApp() {
   try { localStorage.removeItem('hs_chat_history'); } catch (e) {}
   try { if (chat) chat.innerHTML = ''; } catch (e) {}
-  setTimeout(() => {
-    msg('ai', greetWord() + '😊\nHairStudio ONE予約アシスタントです。');
-    showCutMenuPicker('空席確認・ご予約はこちらから。\nまずご希望のメニューをお選びください。\n（メニューを選ぶと、ご予約可能な空き状況がカレンダーで確認できます）');
-  }, 500);
-};
+  // まず画面を出す
+  setTimeout(function () {
+    try {
+      msg('ai', greetWord() + '😊\nHairStudio ONE予約アシスタントです。');
+      showCutMenuPicker('空席確認・ご予約はこちらから。\nまずご希望のメニューをお選びください。\n（メニューを選ぶと、ご予約可能な空き状況がカレンダーで確認できます）');
+    } catch (e) {}
+  }, 60);
+  // 通信は画面が出たあとで、こっそり進める
+  setTimeout(function () {
+    try { updateBadge(); } catch (e) {}
+    (async function () {
+      try { await syncSettingsFromSheet(true); } catch (e) {}
+      try { await syncCalendarStatus(true); } catch (e) {}
+    })();
+  }, 400);
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootApp);
+} else {
+  bootApp();
+}
 
 // 時間帯であいさつを切り替え
 function greetWord() {
