@@ -443,7 +443,7 @@ body::before {
   <div class="brand">
     <img src="logo.jpg" alt="Hair Studio ONE" style="height:38px;width:auto;object-fit:contain;">
   </div>
-  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f2.1</span>
+  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f2.2</span>
   <button class="tab-btn" onclick="showTab('admin')" id="admin-tab" style="display:none">
     管理画面<span class="badge" id="pending-badge" style="display:none">0</span>
   </button>
@@ -1919,6 +1919,7 @@ function askTimeForDate(idx) {
 function showOptionPicker() {
   step = 'options';
   selectedOptions = [];
+  var otherInput = null; // ★「その他」の入力欄（下で作ります）
   const opts = ['パーマ','カラー','縮毛矯正','トリートメント','その他'];
   const wrap = document.createElement('div');
   wrap.className = 'msg ai';
@@ -1931,11 +1932,34 @@ function showOptionPicker() {
   const choicesDiv = document.createElement('div');
   choicesDiv.className = 'choices';
 
+  // ★ 「カット＋追加メニュー」「オプションのみ」を選んだ方は、オプションを1つ以上選ぶ必要がある
+  const optionRequired = /追加メニュー|オプションのみ/.test(bk.cutMenu || '');
+
   const doneBtn = document.createElement('button');
   doneBtn.className = 'c-btn';
-  doneBtn.style.cssText = 'margin-top:6px;border-color:var(--ink);color:var(--ink);display:none;';
-  doneBtn.textContent = '✔ 選択完了（オプションなしの方もこちら）';
-doneBtn.style.cssText = 'margin-top:10px;width:100%;padding:10px;background:rgba(139,111,71,0.12);color:var(--accent);border:1.5px solid rgba(139,111,71,0.4);border-radius:10px;font-size:13px;cursor:pointer;font-family:"DM Sans",sans-serif;';
+  doneBtn.textContent = optionRequired ? '✔ 選択完了' : '✔ 選択完了（オプションなしの方もこちら）';
+  doneBtn.style.cssText = 'margin-top:10px;width:100%;padding:10px;background:rgba(139,111,71,0.12);color:var(--accent);border:1.5px solid rgba(139,111,71,0.4);border-radius:10px;font-size:13px;cursor:pointer;font-family:"DM Sans",sans-serif;';
+
+  // 必須の時に出すご案内
+  const needHint = document.createElement('div');
+  needHint.style.cssText = 'font-size:11px;color:var(--danger);margin-top:6px;display:none;';
+  needHint.textContent = '※ オプションを1つ以上お選びください。';
+
+  // ★ 「選択完了」を押せる状態かどうかを更新する
+  function updateDoneBtn() {
+    let ng = false;
+    if (optionRequired && selectedOptions.length === 0) ng = true;
+    if (selectedOptions.indexOf('その他') >= 0 && !otherInput.value.trim()) ng = true;
+    if (ng) {
+      doneBtn.style.opacity = '0.4';
+      doneBtn.style.pointerEvents = 'none';
+      needHint.style.display = optionRequired && selectedOptions.length === 0 ? 'block' : 'none';
+    } else {
+      doneBtn.style.opacity = '1';
+      doneBtn.style.pointerEvents = 'auto';
+      needHint.style.display = 'none';
+    }
+  }
 
   const btnMap = {};
 
@@ -1988,17 +2012,19 @@ doneBtn.style.cssText = 'margin-top:10px;width:100%;padding:10px;background:rgba
       }
       updateButtonStates();
       doneBtn.style.display = 'inline-block';
+      updateDoneBtn();
     };
     choicesDiv.appendChild(btn);
   });
 
-  // その他のテキスト入力欄
+  // その他のテキスト入力欄（※ otherInput は上の updateDoneBtn から参照するため var で先に用意）
   const otherWrap = document.createElement('div');
   otherWrap.style.cssText = 'margin-top:8px;display:none;';
-  const otherInput = document.createElement('textarea');
+  otherInput = document.createElement('textarea');
   otherInput.placeholder = 'その他の内容をご記入ください。';
   otherInput.rows = 2;
   otherInput.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:8px 12px;font-size:13px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);resize:none;line-height:1.6;';
+  otherInput.oninput = function () { updateDoneBtn(); };
   otherWrap.appendChild(otherInput);
 
   // その他ボタンのonclickに入力欄表示を追加
@@ -2007,10 +2033,13 @@ doneBtn.style.cssText = 'margin-top:10px;width:100%;padding:10px;background:rgba
     btnMap['その他'].onclick = () => {
       origOnclick && origOnclick();
       otherWrap.style.display = selectedOptions.includes('その他') ? 'block' : 'none';
+      updateDoneBtn();
     };
   }
 
   doneBtn.onclick = () => {
+    if (optionRequired && selectedOptions.length === 0) { updateDoneBtn(); return; }
+    if (selectedOptions.indexOf('その他') >= 0 && !otherInput.value.trim()) { updateDoneBtn(); return; }
     choicesDiv.querySelectorAll('button').forEach(b => b.disabled = true);
     otherInput.disabled = true;
     doneBtn.disabled = true;
@@ -2022,14 +2051,15 @@ doneBtn.style.cssText = 'margin-top:10px;width:100%;padding:10px;background:rgba
   };
 
   choicesDiv.appendChild(doneBtn);
+  choicesDiv.appendChild(needHint);
   bub.appendChild(choicesDiv);
   bub.appendChild(otherWrap);
   wrap.appendChild(av); wrap.appendChild(bub);
   chat.appendChild(wrap);
   chat.scrollTop = chat.scrollHeight;
 
-  // 最初からdoneBtn表示（オプションなしも選べる）
-  setTimeout(() => { doneBtn.style.display = 'inline-block'; }, 100);
+  // 最初からdoneBtn表示（必須の場合は選ぶまで押せない状態にする）
+  setTimeout(() => { doneBtn.style.display = 'inline-block'; updateDoneBtn(); }, 100);
 }
 
 async function afterOptions() {
