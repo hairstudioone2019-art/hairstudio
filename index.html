@@ -443,7 +443,7 @@ body::before {
   <div class="brand">
     <img src="logo.jpg" alt="Hair Studio ONE" style="height:38px;width:auto;object-fit:contain;">
   </div>
-  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f2.2</span>
+  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f2.3</span>
   <button class="tab-btn" onclick="showTab('admin')" id="admin-tab" style="display:none">
     管理画面<span class="badge" id="pending-badge" style="display:none">0</span>
   </button>
@@ -1653,6 +1653,20 @@ function askTimeForDate(idx) {
   const dayLabel = d.label;
   const amSt = settings.dayStatus[dayLabel + '_am'] || settings.dayStatus[dayLabel] || 'ok';
   const pmSt = settings.dayStatus[dayLabel + '_pm'] || settings.dayStatus[dayLabel] || 'ok';
+  // ⭐ カットの残り1枠の開始できる時刻（例 "10:00-11:30" → ['10:00','10:30']）
+  const lastCutStarts = (st, range) => {
+    if (st !== 'cut-dim' || !range) return [];
+    const toMin = t => { const p = String(t).split(':'); return parseInt(p[0], 10) * 60 + parseInt(p[1], 10); };
+    const fmt = m => Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0');
+    const [s, e] = String(range).split('-').map(toMin);
+    if (isNaN(s) || isNaN(e)) return [];
+    const out = [];
+    for (let m = Math.ceil(s / 30) * 30; m + 60 <= e; m += 30) out.push(fmt(m));
+    return out;
+  };
+  const amLast = lastCutStarts(amSt, settings.dayStatus[dayLabel + '_am_t']);
+  const pmLast = lastCutStarts(pmSt, settings.dayStatus[dayLabel + '_pm_t']);
+  const lastLabel = a => a.length === 1 ? `${a[0]}〜` : `${a[0]}〜${a[a.length - 1]}開始`;
   const amFull = amSt === 'full';
   const pmFull = pmSt === 'full';
   const bothFull = amFull && pmFull;
@@ -1731,15 +1745,16 @@ function askTimeForDate(idx) {
     zoneDoneBtn.textContent = `✔ ${selectedZone}${selectedSpecificTime ? ' ' + selectedSpecificTime : ''} で確定する`;
   };
 
-  function updateSpecificTimes(zoneValue) {
+  function updateSpecificTimes(zoneValue, onlyTimes) {
     specificSelect.innerHTML = '';
-    const times = zoneTimesMap[zoneValue] || [];
+    // ⭐ 残り1枠の時は、その枠の時刻だけを選べるようにする（最初の時刻を選択済みに）
+    const times = (onlyTimes && onlyTimes.length) ? onlyTimes : (zoneTimesMap[zoneValue] || []);
     times.forEach(t => {
       const opt = document.createElement('option');
       opt.value = t; opt.textContent = t;
       specificSelect.appendChild(opt);
     });
-    selectedSpecificTime = '';
+    selectedSpecificTime = (onlyTimes && onlyTimes.length) ? onlyTimes[0] : '';
   }
   specificWrap.appendChild(specificLabel);
   specificWrap.appendChild(specificSelect);
@@ -1793,17 +1808,20 @@ function askTimeForDate(idx) {
       btn.style.cursor = 'default';
       btn.style.textDecoration = 'line-through';
     } else if (isCutOnly) {
-      btn.textContent = `${z.label}（カットのみ）`;
+      const lastTimes = z.value === '午前' ? amLast : z.value === '午後' ? pmLast : [];
+      btn.textContent = lastTimes.length
+        ? `${z.label}（カットのみ・残り1枠 ${lastLabel(lastTimes)}）`
+        : `${z.label}（カットのみ）`;
       btn.onclick = () => {
         zoneChoices.querySelectorAll('.c-btn').forEach(b => { b.style.background=''; b.style.color=''; });
         btn.style.background = 'var(--accent)'; btn.style.color = 'white';
         selectedZone = z.value;
         specificWrap.style.display = z.value === 'おまかせ' ? 'none' : 'block';
         omakaseWrap.style.display = 'none';
-        updateSpecificTimes(z.value);
+        updateSpecificTimes(z.value, lastTimes);
         zoneDoneBtn.style.opacity = '1';
         zoneDoneBtn.style.pointerEvents = 'auto';
-        zoneDoneBtn.textContent = `✔ ${z.value}（カットのみ） で確定する`;
+        zoneDoneBtn.textContent = `✔ ${z.value}${selectedSpecificTime ? ' ' + selectedSpecificTime : ''}（カットのみ） で確定する`;
       };
     } else {
       btn.textContent = z.label;
