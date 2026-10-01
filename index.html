@@ -443,7 +443,7 @@ body::before {
   <div class="brand">
     <img src="logo.jpg" alt="Hair Studio ONE" style="height:38px;width:auto;object-fit:contain;">
   </div>
-  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f2.5</span>
+  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f2.6</span>
   <button class="tab-btn" onclick="showTab('admin')" id="admin-tab" style="display:none">
     管理画面<span class="badge" id="pending-badge" style="display:none">0</span>
   </button>
@@ -1767,21 +1767,26 @@ function askTimeForDate(idx) {
   const omakaseWrap = document.createElement('div');
   omakaseWrap.style.cssText = 'display:none;margin-top:10px;';
   const omakaseId = `omakase_${idx}_${Date.now()}`;
+  // ⭐ 残り1枠の時間帯は「おまかせ」の選択肢に出さない
+  //    カット（1時間）… カット残り1枠（cut-dim）
+  //    パーマ・カラー（2時間）… 2時間の残り1枠（ok-dim）
+  const omkDur = bk.menuDuration || '1h';
+  const omkLastOne = st => (omkDur === '1h' && st === 'cut-dim') || (omkDur === '2h' && st === 'ok-dim');
+  const omkOptions = [
+    { value: '午前お任せ', text: '午前ならいつでも', show: !omkLastOne(amSt) },
+    { value: '午後お任せ', text: '午後ならいつでも', show: !omkLastOne(pmSt) },
+    { value: '終日お任せ', text: '終日いつでも',     show: !omkLastOne(amSt) && !omkLastOne(pmSt) },
+  ].filter(o => o.show);
+  const omkDefault = omkOptions.length ? omkOptions[omkOptions.length - 1].value : '';
   omakaseWrap.innerHTML = `
     <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">どの時間帯でもよいですか？</div>
     <div style="display:flex;flex-direction:column;gap:6px;">
-      <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid rgba(139,111,71,0.25);border-radius:8px;cursor:pointer;font-size:13px;background:white;">
-        <input type="radio" name="${omakaseId}" value="午前お任せ" style="accent-color:var(--accent);"> 午前ならいつでも
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid rgba(139,111,71,0.25);border-radius:8px;cursor:pointer;font-size:13px;background:white;">
-        <input type="radio" name="${omakaseId}" value="午後お任せ" style="accent-color:var(--accent);"> 午後ならいつでも
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid rgba(139,111,71,0.25);border-radius:8px;cursor:pointer;font-size:13px;background:white;">
-        <input type="radio" name="${omakaseId}" value="終日お任せ" checked style="accent-color:var(--accent);"> 終日いつでも
-      </label>
+      ${omkOptions.map(o => `<label style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid rgba(139,111,71,0.25);border-radius:8px;cursor:pointer;font-size:13px;background:white;">
+        <input type="radio" name="${omakaseId}" value="${o.value}"${o.value === omkDefault ? ' checked' : ''} style="accent-color:var(--accent);"> ${o.text}
+      </label>`).join('')}
     </div>
   `;
-  let selectedOmakase = '終日お任せ';
+  let selectedOmakase = omkDefault;
 
   const zoneDoneBtn = document.createElement('button');
   zoneDoneBtn.className = 'c-btn';
@@ -1805,6 +1810,7 @@ function askTimeForDate(idx) {
     btn.className = 'c-btn';
     const isFull = z.value === '午前' ? amFull : z.value === '午後' ? pmFull : false;
     const isCutOnly = z.value === '午前' ? (amSt === 'cut' || amSt === 'cut-dim') : z.value === '午後' ? (pmSt === 'cut' || pmSt === 'cut-dim') : false;
+    if (z.value === 'おまかせ' && !omkOptions.length) return; // ⭐ 選べるおまかせが無い日はボタンを出さない
     if (isFull) {
       btn.textContent = `${z.label}（満枠）`;
       btn.disabled = true;
@@ -1846,7 +1852,8 @@ function askTimeForDate(idx) {
           });
           zoneDoneBtn.style.opacity = '1';
           zoneDoneBtn.style.pointerEvents = 'auto';
-          zoneDoneBtn.textContent = `✔ 終日お任せ で確定する`;
+          selectedOmakase = omkDefault;
+          zoneDoneBtn.textContent = `✔ ${omkDefault} で確定する`;
         } else {
           specificWrap.style.display = 'block';
           omakaseWrap.style.display = 'none';
