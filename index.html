@@ -443,7 +443,7 @@ body::before {
   <div class="brand">
     <img src="logo.jpg" alt="Hair Studio ONE" style="height:38px;width:auto;object-fit:contain;">
   </div>
-  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f2.3</span>
+  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f2.4</span>
   <button class="tab-btn" onclick="showTab('admin')" id="admin-tab" style="display:none">
     管理画面<span class="badge" id="pending-badge" style="display:none">0</span>
   </button>
@@ -1505,7 +1505,11 @@ function showDatePicker() {
         // ★ 午前・午後それぞれの空き状況で色分け（予約可＝ブルー/薄ブルー、不可＝グレー）
         const slotColor = (bookable, st) => {
           if (!bookable) return 'side-off';        // グレー（予約不可）
-          return st === 'ok-dim' ? 'side-ok-dim' : 'side-ok'; // 残りわずか＝薄ブルー、空き＝ブルー
+          // ⭐ 薄ブルーの条件
+          //    カット（1時間）… カット残り1枠（cut-dim）
+          //    パーマ・カラーなど … これまで通り（ok-dim）
+          const lastOne = dur === '1h' ? st === 'cut-dim' : st === 'ok-dim';
+          return lastOne ? 'side-ok-dim' : 'side-ok'; // 残りわずか＝薄ブルー、空き＝ブルー
         };
         const amColor = slotColor(amBookable, amSt);
         const pmColor = slotColor(pmBookable, pmSt);
@@ -1925,7 +1929,11 @@ function askTimeForDate(idx) {
     afterDoneBtn.disabled = true;
   }
 
-  bub.appendChild(tabBar);
+  // ⭐ カットの残り1枠の時間帯がある日は「何時以降で選ぶ」を出さない（時間帯で選ぶだけにする）
+  //    パーマ・カラーなどはこれまで通り
+  const durNow = bk.menuDuration || '1h';
+  const isLastOne = st => durNow === '1h' && st === 'cut-dim';
+  if (!isLastOne(amSt) && !isLastOne(pmSt)) bub.appendChild(tabBar);
   bub.appendChild(zonePanel);
   bub.appendChild(afterPanel);
   wrap.appendChild(av); wrap.appendChild(bub);
