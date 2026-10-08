@@ -443,7 +443,7 @@ body::before {
   <div class="brand">
     <img src="logo.jpg" alt="Hair Studio ONE" style="height:38px;width:auto;object-fit:contain;">
   </div>
-  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f2.7</span>
+  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f2.8</span>
   <button class="tab-btn" onclick="showTab('admin')" id="admin-tab" style="display:none">
     管理画面<span class="badge" id="pending-badge" style="display:none">0</span>
   </button>
@@ -695,9 +695,14 @@ function showNameInput(isNewCustomer) {
   av.innerHTML = '<img src="logo.jpg" style="width:32px;height:32px;object-fit:contain;" alt="ONE">';
   const bub = document.createElement('div');
   bub.className = 'bubble';
-  bub.textContent = isNewCustomer
-    ? 'はじめまして！\nまず、お名前をフルネームでお教えください。'
-    : 'いつもありがとうございます！\nお名前をお教えください。';
+  // ⭐ この端末で前回入力したお名前（LINEのログインは使わない＝古い端末でも固まらない）
+  var savedName = '';
+  try { savedName = localStorage.getItem('hs_my_name') || ''; } catch (e) {}
+  bub.textContent = savedName
+    ? 'いつもありがとうございます！\n前回と同じお名前でよろしければ、下のボタンを押してください。'
+    : isNewCustomer
+      ? 'はじめまして！\nまず、お名前をフルネームでお教えください。'
+      : 'いつもありがとうございます！\nお名前をお教えください。';
   const input = document.createElement('input');
   input.type = 'text';
   input.placeholder = '例）和歌山 市子';
@@ -715,20 +720,33 @@ function showNameInput(isNewCustomer) {
     }
     input.disabled = true;
     doneBtn.disabled = true;
+    if (sameBtn) sameBtn.disabled = true;
+    try { localStorage.setItem('hs_my_name', val); } catch (e) {} // ⭐ 次回のために覚えておく
     userMsg(val);
     setTimeout(() => processInput(val), 300);
   };
   doneBtn.onclick = submit;
+  // ⭐ 前回のお名前で進むボタン
+  var sameBtn = null;
+  if (savedName) {
+    sameBtn = document.createElement('button');
+    sameBtn.className = 'c-btn';
+    sameBtn.style.cssText = 'margin-top:10px;width:100%;padding:12px;background:var(--accent);color:white;border:none;border-radius:10px;font-size:14px;cursor:pointer;font-family:"DM Sans",sans-serif;';
+    sameBtn.textContent = '✔ ' + savedName + ' 様で進む';
+    sameBtn.onclick = function () { input.value = savedName; submit(); };
+    input.placeholder = '別のお名前で予約する場合はこちらに入力';
+  }
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); submit(); }
   });
+  if (sameBtn) bub.appendChild(sameBtn);
   bub.appendChild(input);
   bub.appendChild(doneBtn);
   wrap.appendChild(av);
   wrap.appendChild(bub);
   chat.appendChild(wrap);
   chat.scrollTop = chat.scrollHeight;
-  setTimeout(() => input.focus(), 300);
+  if (!savedName) setTimeout(() => input.focus(), 300); // 前回の名前がある時はキーボードを出さない
 }
 
 // ===== 使い方案内ボックス =====
