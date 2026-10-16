@@ -443,7 +443,7 @@ body::before {
   <div class="brand">
     <img src="logo.jpg" alt="Hair Studio ONE" style="height:38px;width:auto;object-fit:contain;">
   </div>
-  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f2.9</span>
+  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f3.2</span>
   <button class="tab-btn" onclick="showTab('admin')" id="admin-tab" style="display:none">
     管理画面<span class="badge" id="pending-badge" style="display:none">0</span>
   </button>
@@ -1344,6 +1344,28 @@ function chipSideHtml(amStatus, pmStatus) {
   return `<div class="d-chip-side"><div class="d-chip-side-top ${am}"></div><div class="d-chip-side-bot ${pm}"></div></div>`;
 }
 
+// ⭐ 当日の、もう始められない時間帯（過ぎた時間）の判定
+//   午前 … 最後の開始（カット11:30／パーマ・カラーなど11:00）を過ぎたら選べない
+//   午後 … ラストオーダー（カット17:30／それ以外17:00）を過ぎたら選べない
+function lastStartMin(half, dur) {
+  if (half === 'am') return (dur === '1h') ? 11 * 60 + 30 : 11 * 60;
+  return (dur === '1h') ? 17 * 60 + 30 : 17 * 60;
+}
+function isTodayLabel(label) {
+  var n = new Date();
+  return label === (n.getMonth() + 1) + '/' + n.getDate();
+}
+function nowMinutes() { var n = new Date(); return n.getHours() * 60 + n.getMinutes(); }
+function halfPassedToday(label, half, dur) {
+  return isTodayLabel(label) && nowMinutes() >= lastStartMin(half, dur || '1h');
+}
+// 当日なら、今から30分後以降の開始時刻だけ残す（"9:30" などの配列）
+function dropPastTimes(label, list) {
+  if (!isTodayLabel(label)) return list;
+  var lim = nowMinutes() + 30;
+  return list.filter(function (t) { var p = String(t).split(':'); if (p.length < 2) return true; return parseInt(p[0], 10) * 60 + parseInt(p[1], 10) >= lim; });
+}
+
 function getDayStatuses(label) {
   // 常に最新のsettingsから取得
   const s = JSON.parse(localStorage.getItem('hs_settings') || '{}');
@@ -1515,8 +1537,8 @@ function showDatePicker() {
           if (dur === '2h') return st === 'ok' || st === 'ok-dim';
           return st === 'ok';
         };
-        let amBookable = slotOk(amSt);
-        let pmBookable = slotOk(pmSt);
+        let amBookable = slotOk(amSt) && !halfPassedToday(dObj.label, 'am', dur);
+        let pmBookable = slotOk(pmSt) && !halfPassedToday(dObj.label, 'pm', dur);
         const slotCount = (amBookable ? 1 : 0) + (pmBookable ? 1 : 0);
         const isSelectable = slotCount > 0;
         const isCutOnlyDay = false; // 顧客には色の区別を見せない（青/薄青のみ）
@@ -1690,11 +1712,17 @@ function askTimeForDate(idx) {
     for (let m = Math.ceil(s / 30) * 30; m + 60 <= e; m += 30) out.push(fmt(m));
     return out;
   };
-  const amLast = lastCutStarts(amSt, settings.dayStatus[dayLabel + '_am_t']);
-  const pmLast = lastCutStarts(pmSt, settings.dayStatus[dayLabel + '_pm_t']);
+  const amLast = dropPastTimes(dayLabel, lastCutStarts(amSt, settings.dayStatus[dayLabel + '_am_t']));
+  const pmLast = dropPastTimes(dayLabel, lastCutStarts(pmSt, settings.dayStatus[dayLabel + '_pm_t']));
   const lastLabel = a => a.length === 1 ? `${a[0]}〜` : `${a[0]}〜${a[a.length - 1]}開始`;
-  const amFull = amSt === 'full';
-  const pmFull = pmSt === 'full';
+  // ⭐ 選んだメニューで予約できない時間帯は「満枠」扱い（カレンダーの色と同じ基準）
+  //    カット（1時間）… 満でなければOK
+  //    カット＋追加メニュー・パーマ・カラー（2時間）… 2時間の枠がある時だけ（カットのみの時間帯は選べない）
+  //    それより長いメニュー … 2時間の枠が2つ以上ある時だけ
+  const zDur = bk.menuDuration || '1h';
+  const zoneBookable = st => zDur === '1h' ? st !== 'full' : zDur === '2h' ? (st === 'ok' || st === 'ok-dim') : st === 'ok';
+  const amFull = !zoneBookable(amSt) || halfPassedToday(dayLabel, 'am', zDur); // 当日で時間が過ぎていても満枠扱い
+  const pmFull = !zoneBookable(pmSt) || halfPassedToday(dayLabel, 'pm', zDur);
   const bothFull = amFull && pmFull;
 
   // 両方満枠の場合はメッセージ表示
@@ -1761,10 +1789,11 @@ function askTimeForDate(idx) {
   const specificSelect = document.createElement('select');
   specificSelect.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:9px 12px;font-size:13px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);background:white;cursor:pointer;margin-top:4px;';
   const zoneTimesMap = {
-    '午前': ['指定しない','9:00','9:30','10:00','10:30','11:00','11:30'],
+    // ⭐ 午前の開始：カットは11:30まで／パーマ・カラーなどは11:00まで（13時からのお昼を取るため）
+    '午前': ['指定しない'].concat(dropPastTimes(dayLabel, ['9:00','9:30','10:00','10:30','11:00'].concat((bk.menuDuration || '1h') === '1h' ? ['11:30'] : []))),
     // ⭐ ラストオーダー：カットは17:30、パーマ・カラーなどカット以外は17:00
-    '午後': ['指定しない','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00']
-      .concat((bk.menuDuration || '1h') === '1h' ? ['17:30'] : []),
+    '午後': ['指定しない'].concat(dropPastTimes(dayLabel, ['13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00']
+      .concat((bk.menuDuration || '1h') === '1h' ? ['17:30'] : []))),
     'おまかせ': [],
   };
   let selectedSpecificTime = '';
@@ -1797,9 +1826,10 @@ function askTimeForDate(idx) {
   const omkDur = bk.menuDuration || '1h';
   const omkLastOne = (st, last) => (omkDur === '1h' && (st === 'cut-dim' || last.length > 0)) || (omkDur === '2h' && st === 'ok-dim');
   const omkOptions = [
-    { value: '午前お任せ', text: '午前ならいつでも', show: !omkLastOne(amSt, amLast) },
-    { value: '午後お任せ', text: '午後ならいつでも', show: !omkLastOne(pmSt, pmLast) },
-    { value: '終日お任せ', text: '終日いつでも',     show: !omkLastOne(amSt, amLast) && !omkLastOne(pmSt, pmLast) },
+    // ⭐ 満枠（そのメニューで予約できない）時間帯も出さない
+    { value: '午前お任せ', text: '午前ならいつでも', show: !amFull && !omkLastOne(amSt, amLast) },
+    { value: '午後お任せ', text: '午後ならいつでも', show: !pmFull && !omkLastOne(pmSt, pmLast) },
+    { value: '終日お任せ', text: '終日いつでも',     show: !amFull && !pmFull && !omkLastOne(amSt, amLast) && !omkLastOne(pmSt, pmLast) },
   ].filter(o => o.show);
   const omkDefault = omkOptions.length ? omkOptions[omkOptions.length - 1].value : '';
   omakaseWrap.innerHTML = `
@@ -1908,7 +1938,11 @@ function askTimeForDate(idx) {
 
   const afterSelect = document.createElement('select');
   afterSelect.style.cssText = 'width:100%;border:1px solid rgba(139,111,71,0.3);border-radius:8px;padding:9px 12px;font-size:13px;font-family:"DM Sans",sans-serif;outline:none;color:var(--ink);background:white;cursor:pointer;margin-bottom:10px;';
-  ['選択してください','9:00','9:30','10:00','10:30','11:00','11:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'].forEach(t => {
+  // ⭐ 「何時以降」の選択肢も、満枠の時間帯・過ぎた時刻・メニューの最終開始に合わせる
+  const aDur = bk.menuDuration || '1h';
+  const afterAm = amFull ? [] : ['9:00','9:30','10:00','10:30','11:00'].concat(aDur === '1h' ? ['11:30'] : []);
+  const afterPm = pmFull ? [] : ['13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'].concat(aDur === '1h' ? ['17:30'] : []);
+  ['選択してください'].concat(dropPastTimes(dayLabel, afterAm.concat(afterPm))).forEach(t => {
     const opt = document.createElement('option');
     opt.value = t; opt.textContent = t;
     if (t === '選択してください') opt.disabled = true;
@@ -2123,6 +2157,17 @@ function showOptionPicker() {
 }
 
 async function afterOptions() {
+  // ⭐ 施術時間の長いメニューのお知らせ（カレンダーは2時間で空きを見ているため）
+  //    パーマ＋カラー（約4時間）・縮毛矯正（約3時間30分）
+  if (!bk.longNoticeShown) {
+    var longName = selectedOptions.includes('縮毛矯正') ? '縮毛矯正（約3時間30分）'
+      : (selectedOptions.includes('パーマ') && selectedOptions.includes('カラー')) ? 'パーマとカラーの組み合わせ（約4時間）' : '';
+    if (longName) {
+      bk.longNoticeShown = true;
+      msg('ai', 'ℹ️ ' + longName + 'は施術時間が長いため、ご希望のお時間でお受けできない場合がございます。\nその際は、別のお時間をご提案させていただきます🙇');
+      await new Promise(function (r) { setTimeout(r, 600); });
+    }
+  }
   // 縮毛矯正がある → 新規のみカウンセリングへ
   if (selectedOptions.includes('縮毛矯正') && isNew) {
     showKyokumoCounseling();
