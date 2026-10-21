@@ -443,7 +443,7 @@ body::before {
   <div class="brand">
     <img src="logo.jpg" alt="Hair Studio ONE" style="height:38px;width:auto;object-fit:contain;">
   </div>
-  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f3.2</span>
+  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f3.3</span>
   <button class="tab-btn" onclick="showTab('admin')" id="admin-tab" style="display:none">
     管理画面<span class="badge" id="pending-badge" style="display:none">0</span>
   </button>
@@ -1308,9 +1308,19 @@ function getAvailableDates() {
   const days = ['日','月','火','水','木','金','土'];
   const result = [];
   const today = new Date();
-  for (let i = 0; i <= 21; i++) {
+  // ⭐ 先行予約の期間（管理画面で設定）。いつもの3週間に加えて、この期間の日も選べる
+  const po = settings.preOpen;
+  const ymdOfD = x => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+  let maxI = 21;
+  if (po && po.to) {
+    const pt = po.to.split('-'); const tEnd = new Date(+pt[0], +pt[1] - 1, +pt[2]);
+    const t0 = new Date(today); t0.setHours(0, 0, 0, 0);
+    maxI = Math.max(21, Math.min(120, Math.ceil((tEnd - t0) / 86400000)));
+  }
+  for (let i = 0; i <= maxI; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
+    if (i > 21) { const y = ymdOfD(d); if (!(po && y >= po.from && y <= po.to)) continue; }
     const dow = d.getDay();
     // 月曜日（1）は定休日
     if (dow === 1) continue;
@@ -3492,6 +3502,7 @@ async function syncSettingsFromSheet(force = false) {
       // dayStatusとclosedDatesはシート側を「正」として完全置換
       merged.dayStatus = json.settings.dayStatus || {};
       merged.closedDates = json.settings.closedDates || [];
+      merged.preOpen = json.settings.preOpen || null; // 先行予約をやめた時に古い設定が残らないように
       settings = merged;
       localStorage.setItem('hs_settings', JSON.stringify(settings));
       localStorage.setItem('hs_settings_last_fetch', Date.now().toString());
