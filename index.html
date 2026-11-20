@@ -29,6 +29,7 @@
   --shadow: 0 4px 24px rgba(26,20,16,0.1);
 }
 * { margin:0; padding:0; box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
 body {
   font-family: 'DM Sans', sans-serif;
   background: var(--cream);
@@ -212,7 +213,7 @@ body::before {
   letter-spacing:.1em;margin:10px 0 6px;
 }
 .cal-header {
-  display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px;
+  display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;margin-bottom:3px;
 }
 .cal-header span {
   text-align:center;font-size:10px;color:var(--muted);padding:2px 0;
@@ -220,18 +221,18 @@ body::before {
 .cal-header span:first-child { color:#c0695a; }
 .cal-header span:last-child { color:#5a7ac0; }
 .cal-grid {
-  display:grid;grid-template-columns:repeat(7,1fr);gap:3px;
+  display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;
 }
 .d-chip {
   background:white;border:1px solid rgba(139,111,71,0.15);
   border-radius:8px;cursor:pointer;
   transition:all .18s;
-  min-height:54px;
+  min-height:54px;min-width:0;
   display:flex;flex-direction:row;overflow:visible;
 }
 .d-chip-side { display:flex;flex-direction:column;width:6px;flex-shrink:0; }
 .d-chip-side-top,.d-chip-side-bot { flex:1;cursor:pointer; }
-.d-chip-body { flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 2px; }
+.d-chip-body { flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 1px; }
 .d-chip:hover { border-color:var(--accent); }
 .d-chip.disabled { opacity:.25;cursor:default;pointer-events:none;background:var(--warm); }
 .d-chip.disabled .d-chip-side-top,.d-chip.disabled .d-chip-side-bot { background:#d8d4d0; }
@@ -241,7 +242,7 @@ body::before {
 .d-chip.selected .d-name { color:var(--accent);font-weight:500; }
 .d-chip.empty { background:transparent;border-color:transparent;cursor:default;pointer-events:none; }
 .d-num { font-size:15px;font-family:'DM Sans',sans-serif;font-weight:500;display:block;color:var(--ink); }
-.d-name { font-size:9px;color:var(--muted);display:block;margin-top:2px;line-height:1.2; }
+.d-name { font-size:9px;color:var(--muted);display:block;margin-top:2px;line-height:1.2;text-align:center;word-break:keep-all;overflow-wrap:anywhere; }
 .d-chip.sun .d-num { color:#c0695a; }
 .d-chip.sat .d-num { color:#5a7ac0; }
 .d-chip.full { border-color:#d8d4d0;cursor:default;pointer-events:none;background:#ededeb;opacity:.7; }
@@ -443,7 +444,7 @@ body::before {
   <div class="brand">
     <img src="logo.jpg" alt="Hair Studio ONE" style="height:38px;width:auto;object-fit:contain;">
   </div>
-  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f3.4</span>
+  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f3.5</span>
   <button class="tab-btn" onclick="showTab('admin')" id="admin-tab" style="display:none">
     管理画面<span class="badge" id="pending-badge" style="display:none">0</span>
   </button>
@@ -1516,11 +1517,11 @@ function showDatePicker() {
         // 月曜日は定休日として表示
         if (dow === 1) {
           chip.className = `d-chip holiday${sunCls}`;
-          chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休日</span></div>`;
+          chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休<wbr>日</span></div>`;
         } else if (isFutureClosed) {
           // 予約可能期間より先だが、臨時休業日として表示
           chip.className = `d-chip holiday${sunCls}`;
-          chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休日</span></div>`;
+          chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休<wbr>日</span></div>`;
         } else {
           // 過去日・範囲外
           chip.className = `d-chip disabled${sunCls}`;
@@ -1529,7 +1530,7 @@ function showDatePicker() {
       } else if (dObj.closed) {
         chip.className = `d-chip holiday${sunCls}`;
         chip.dataset.label = dObj.label;
-        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休日</span></div>`;
+        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休<wbr>日</span></div>`;
       } else if (dObj.full) {
         chip.className = `d-chip full${sunCls}`;
         chip.dataset.label = dObj.label;
@@ -1583,7 +1584,7 @@ function showDatePicker() {
                   const di = selectedDates.findIndex(x => x.label === c._dLabel);
                   const nb = c.querySelector('.d-chip-body');
                   const ne = nb && nb.querySelector('.d-name');
-                  if (di >= 0 && ne) ne.textContent = `第${di+1}希望`;
+                  if (di >= 0 && ne) ne.innerHTML = `第${di+1}<wbr>希望`;
                 }
               });
             } else if (selectedDates.length < 3) {
@@ -1596,7 +1597,7 @@ function showDatePicker() {
                 nameEl.className = 'd-name';
                 body.appendChild(nameEl);
               }
-              nameEl.textContent = `第${selectedDates.length}希望`;
+              nameEl.innerHTML = `第${selectedDates.length}<wbr>希望`;
             }
             confirmBtn.style.display = selectedDates.length > 0 ? 'block' : 'none';
             confirmBtn.textContent = `選択した${selectedDates.length}日で次へ →`;
@@ -3189,7 +3190,7 @@ function renderAdminCalendar() {
       if ((!isInRange || isPast) && !isPast && (settings.closedDates || []).includes(label)) {
         // 予約可能期間より先だが、臨時休業日として表示
         chip.className = `d-chip holiday${sunCls}`;
-        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休日</span></div>`;
+        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休<wbr>日</span></div>`;
       } else if (!isInRange || isPast) {
         // 範囲外・過去
         chip.className = `d-chip disabled${sunCls}`;
@@ -3197,11 +3198,11 @@ function renderAdminCalendar() {
       } else if (dow === 1) {
         // 月曜定休
         chip.className = `d-chip holiday${sunCls}`;
-        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休日</span></div>`;
+        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休<wbr>日</span></div>`;
       } else if ((settings.closedDates || []).includes(label)) {
         // 休業日
         chip.className = `d-chip holiday${sunCls}`;
-        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休日</span></div>`;
+        chip.innerHTML = `<div class="d-chip-side"><div class="d-chip-side-top side-off"></div><div class="d-chip-side-bot side-off"></div></div><div class="d-chip-body"><span class="d-num">${day}</span><span class="d-name">定休<wbr>日</span></div>`;
       } else {
         // 通常日：午前・午後それぞれタップで切り替え
         const amStatus = settings.dayStatus[label + '_am'] || settings.dayStatus[label] || 'ok';
