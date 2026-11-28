@@ -445,7 +445,7 @@ body::before {
   <div class="brand">
     <img src="logo.jpg" alt="Hair Studio ONE" style="height:38px;width:auto;object-fit:contain;">
   </div>
-  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f3.7</span>
+  <button class="tab-btn active" onclick="showTab('customer')" id="customer-tab">予約フォーム</button><span style="font-size:9px;color:#c5bcb0;margin-left:6px;align-self:center;">f3.8</span>
   <button class="tab-btn" onclick="showTab('admin')" id="admin-tab" style="display:none">
     管理画面<span class="badge" id="pending-badge" style="display:none">0</span>
   </button>
@@ -1648,12 +1648,13 @@ function showDatePicker() {
   const backBtn = document.createElement('button');
   backBtn.className = 'c-btn';
   backBtn.style.cssText = 'margin-top:6px;width:100%;font-size:11px;color:var(--muted);border-color:rgba(155,142,130,0.4);';
-  backBtn.textContent = '← 予約方法の選択に戻る';
+  backBtn.textContent = CHANGE_CTX ? '← ご予約の確認に戻る' : '← 予約方法の選択に戻る';
   backBtn.onclick = () => {
     allChips.forEach(c => { c.onclick = null; c.style.pointerEvents='none'; });
     confirmBtn.disabled = true; backBtn.disabled = true;
     userMsg('← 戻る');
     setTimeout(() => {
+      if (CHANGE_CTX) { CHANGE_CTX = null; showMyBookings(); return; } // ⭐ 変更の途中なら予約の確認へ
       showUsageGuide(isNew);
     }, 200);
   };
@@ -1731,6 +1732,8 @@ function askTimeForDate(idx) {
       if (t.includes('おまかせ') && isCut(am) && isCut(pm)) return true;
       return false;
     });
+    // ⭐ 予約の変更の途中なら、ここで変更の希望を確認して送る
+    if (CHANGE_CTX) { mpConfirmChange(); return; }
     // ★ 日時確定後 → 新規/常連を聞く
     step = 'type';
     msg('ai', '本日はご新規様ですか？', [
@@ -4629,6 +4632,7 @@ function bootApp() {
   // まず画面を出す
   setTimeout(function () {
     try {
+      if (isMyPageMode()) { startMyPage(); return; } // ⭐ 「予約の確認・変更」から開いた時
       msg('ai', greetWord() + '😊\nHairStudio ONE予約アシスタントです。');
       showCutMenuPicker('空席確認・ご予約はこちらから。\nまずご希望のメニューをお選びください。\n（メニューを選ぶと、ご予約可能な空き状況がカレンダーで確認できます）');
     } catch (e) {}
@@ -4646,6 +4650,150 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootApp);
 } else {
   bootApp();
+}
+
+// ============================================================
+// ⭐ 予約の確認・変更ページ（LIFFのURLに ?mode=mypage を付けて開く）
+//   ・自分の予約を見て、日時の変更・キャンセルを「希望」として送れる
+//   ・確定はお店が管理画面で行う（ここでは確定しない）
+//   ・本人確認はGAS側で、LINEのアクセストークンを使って行う
+// ============================================================
+let CHANGE_CTX = null;   // 変更中の予約 { id, cur, menu }
+let MP_LIST = [];        // 読み込んだ予約
+function isMyPageMode() {
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.get('mode') === 'mypage') return true;
+    return /mode=mypage/.test(decodeURIComponent(q.get('liff.state') || ''));
+  } catch (e) { return false; }
+}
+function mpEsc(t) { return String(t || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+async function mpCall(action, extra) {
+  try { await Promise.race([liffInitPromise, new Promise(r => setTimeout(r, 6000))]); } catch (e) {}
+  let at = '';
+  try { at = (typeof liff !== 'undefined' && liff.getAccessToken) ? (liff.getAccessToken() || '') : ''; } catch (e) {}
+  if (!at) return { success: false, error: 'auth' };
+  const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(Object.assign({ action: action, accessToken: at }, extra || {})) });
+  return await res.json();
+}
+// ボタン付きの吹き出し（ボタンを押すと、すべてのボタンを止めて fn を実行）
+function mpMsg(html, buttons) {
+  const box = document.createElement('div');
+  if (buttons && buttons.length) {
+    box.className = 'choices';
+    box.style.marginTop = '10px';
+    buttons.forEach(b => {
+      const btn = document.createElement('button');
+      btn.className = 'c-btn';
+      btn.textContent = b.label;
+      if (b.style) btn.style.cssText = b.style;
+      btn.onclick = () => {
+        box.querySelectorAll('.c-btn').forEach(x => x.disabled = true);
+        if (!b.noEcho) userMsg(b.label);
+        setTimeout(b.fn, 250);
+      };
+      box.appendChild(btn);
+    });
+  }
+  msg('ai', html, null, box);
+}
+async function startMyPage() {
+  step = 'mypage';
+  CHANGE_CTX = null;
+  msg('ai', greetWord() + '😊\nご予約の確認・変更のページです。');
+  typing();
+  let r = null;
+  try { r = await mpCall('myBooking'); } catch (e) { r = null; }
+  removeTyping();
+  if (!r || !r.success) {
+    const auth = r && r.error === 'auth';
+    mpMsg(auth ? 'LINEの情報を確認できませんでした。<br>お手数ですが、LINEのトーク画面からこのページを開き直してください。'
+               : '通信がうまくいきませんでした。<br>少し時間をおいて、もう一度お試しください。',
+      [{ label: 'もう一度読み込む', fn: startMyPage }, { label: '新しく予約する', fn: mpNewBooking }]);
+    return;
+  }
+  MP_LIST = r.bookings || [];
+  showMyBookings();
+}
+function mpStatusLabel(st) {
+  return st === 'approved' ? '✅ ご予約確定' : st === 'awaiting_customer' ? '📨 お店から日時をご提案中' : '⏳ お店で確認中（まだ確定していません）';
+}
+function showMyBookings() {
+  step = 'mypage';
+  if (!MP_LIST.length) {
+    mpMsg('現在お受けしているご予約は見つかりませんでした。<br><span style="font-size:11px;color:var(--muted);">※別のLINEアカウントやお電話でご予約の場合は表示されません。</span>',
+      [{ label: '新しく予約する', fn: mpNewBooking }]);
+    return;
+  }
+  MP_LIST.forEach((b, i) => {
+    let html = '<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">' + (MP_LIST.length > 1 ? 'ご予約 ' + (i + 1) : 'ご予約内容') + '</div>'
+      + '<div style="border:1px solid rgba(139,111,71,0.25);border-radius:10px;padding:10px 12px;background:#fff;line-height:1.8;">'
+      + '📅 <b>' + mpEsc(b.dateStr || '日時未定') + '</b><br>💇 ' + mpEsc(b.menu) + '<br>'
+      + '<span style="font-size:12px;">' + mpStatusLabel(b.status) + '</span></div>';
+    const btns = [];
+    if (b.requested) {
+      html += '<div style="margin-top:8px;font-size:12px;color:#8a4a10;">' + (b.requestKind === 'cancel' ? 'キャンセル' : '変更') + 'のご希望を受け付け済みです。お店からのご連絡をお待ちください🌿</div>';
+    }
+    if (b.locked) {
+      html += '<div style="margin-top:8px;font-size:12px;color:#a33;line-height:1.7;">前日18時を過ぎたため、ここからは変更・キャンセルできません。<br>お手数ですが、お電話（<a href="tel:0734462196" style="color:#8b6f47;font-weight:700;">073-446-2196</a>）か、LINEのトークでご連絡ください。</div>';
+    } else {
+      if (b.deadline) html += '<div style="margin-top:8px;font-size:11px;color:var(--muted);">※ここからの変更・キャンセルは ' + mpEsc(b.deadline) + ' まで</div>';
+      btns.push({ label: '📅 日時を変更したい', fn: () => mpStartChange(b) });
+      btns.push({ label: '✖ キャンセルしたい', fn: () => mpAskCancel(b) });
+    }
+    mpMsg(html, btns);
+  });
+  mpMsg('ほかのご予約をされる場合はこちら', [{ label: '新しく予約する', fn: mpNewBooking }]);
+}
+function mpNewBooking() {
+  CHANGE_CTX = null; bk = {}; selectedDates = [];
+  showCutMenuPicker('ご希望のメニューをお選びください。\n（メニューを選ぶと、ご予約可能な空き状況がカレンダーで確認できます）');
+}
+function mpStartChange(b) {
+  CHANGE_CTX = { id: b.id, cur: b.dateStr, menu: b.menu };
+  const m = b.minutes || 60;
+  bk = { menuDuration: m <= 60 ? '1h' : m <= 120 ? '2h' : m <= 180 ? '3h' : '4h', cutMenu: b.menu };
+  selectedDates = [];
+  msg('ai', '新しいご希望の日時をお選びください。\n（メニュー：' + b.menu + '）\n\nいまのご予約は、お店が変更を確定するまでそのままです。');
+  setTimeout(() => showDatePicker(), 300);
+}
+function mpConfirmChange() {
+  const c = CHANGE_CTX;
+  mpMsg('下記の内容で、変更のご希望を送ります。<br><br>📅 いまのご予約：<b>' + mpEsc(c.cur) + '</b><br>📝 ご希望<br>' + mpEsc(bk.timePref).replace(/\n/g, '<br>'),
+    [{ label: '送信する', fn: () => mpSend('change', bk.timePref) },
+     { label: '日にちを選び直す', fn: () => showDatePicker() },
+     { label: 'やめる', fn: () => { CHANGE_CTX = null; showMyBookings(); } }]);
+}
+function mpAskCancel(b) {
+  CHANGE_CTX = { id: b.id, cur: b.dateStr, menu: b.menu };
+  mpMsg('こちらのご予約のキャンセルを希望されますか？<br><br>📅 <b>' + mpEsc(b.dateStr) + '</b><br>💇 ' + mpEsc(b.menu),
+    [{ label: 'キャンセルを希望する', fn: () => mpSend('cancel', '') },
+     { label: 'やめる', fn: () => { CHANGE_CTX = null; showMyBookings(); } }]);
+}
+async function mpSend(kind, wishes) {
+  const c = CHANGE_CTX;
+  if (!c) return;
+  typing();
+  let r = null;
+  try { r = await mpCall('changeRequest', { id: c.id, kind: kind, wishes: wishes || '' }); } catch (e) { r = null; }
+  removeTyping();
+  if (r && r.success) {
+    CHANGE_CTX = null;
+    MP_LIST.forEach(b => { if (b.id === c.id) { b.requested = true; b.requestKind = kind; } });
+    msg('ai', kind === 'cancel'
+      ? 'キャンセルのご希望を受け付けました。\nお店で確認のうえ、LINEでご連絡いたします🌿\n（まだキャンセルは完了しておりません）\n\nこの画面は閉じていただいて大丈夫です。'
+      : '変更のご希望を受け付けました😊\n空き状況を確認して、あらためてLINEでご連絡いたします🌿\n（まだ変更は確定しておりません）\n\nこの画面は閉じていただいて大丈夫です。');
+    return;
+  }
+  const err = r && r.error;
+  if (err === 'locked') {
+    mpMsg('前日18時を過ぎたため、ここからは変更・キャンセルできません。<br>お手数ですが、お電話（<a href="tel:0734462196" style="color:#8b6f47;font-weight:700;">073-446-2196</a>）か、LINEのトークでご連絡ください。', []);
+    return;
+  }
+  mpMsg(err === 'notfound' ? 'ご予約が見つかりませんでした。すでにお店で変更・キャンセルされている可能性があります。'
+                           : err === 'auth' ? 'LINEの情報を確認できませんでした。LINEのトーク画面から開き直してください。'
+                           : '送信できませんでした。少し時間をおいて、もう一度お試しください。',
+    [{ label: 'もう一度送る', fn: () => mpSend(kind, wishes) }, { label: 'ご予約の確認に戻る', fn: startMyPage }]);
 }
 
 // 時間帯であいさつを切り替え
